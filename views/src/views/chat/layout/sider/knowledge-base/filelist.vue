@@ -3,7 +3,7 @@ import { onMounted, ref, toRef } from 'vue'
 import { NInput, NP, NPopconfirm, NScrollbar, NText, NUpload, NUploadDragger } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
 import { useChatStore } from '@/store'
-import { deletefile, getfilelist, setapi, web_url } from '@/api/chat'
+import { deleteKnowledgeFile, getKnowledgeFiles, setapi, web_url } from '@/api/chat'
 const knowledge = defineProps({
   knowledgebaseid: {
     type: String, // 类型字符串
@@ -15,7 +15,7 @@ const chatStore = useChatStore()
 const dataSources = ref<any>([])
 
 onMounted(async () => {
-  const res = await getfilelist(knowledge_base_id.value)
+  const res = await getKnowledgeFiles(knowledge_base_id.value)
   dataSources.value = res.data.data
 })
 
@@ -25,8 +25,8 @@ onMounted(async () => {
 } */
 
 async function handleDelete(item: any) {
-  /* const mid =  */await deletefile({ knowledge_base_id: knowledge_base_id.value, doc_name: item })
-  const res = await getfilelist(knowledge_base_id.value)
+  /* const mid =  */await deleteKnowledgeFile({ knowledge_base_id: knowledge_base_id.value, doc_name: item })
+  const res = await getKnowledgeFiles(knowledge_base_id.value)
   dataSources.value = res.data.data
 }
 

@@ -1,9 +1,23 @@
-<script setup lang='ts'>
+<script setup lang="ts">
 import type { Ref } from 'vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { NAutoComplete, NButton, NDropdown, NInput, NRadioButton, NRadioGroup, useDialog, useMessage } from 'naive-ui'
+import {
+  NAlert,
+  NAutoComplete,
+  NButton,
+  NDropdown,
+  NGi,
+  NGrid,
+  NImage,
+  NInput,
+  NRadioButton,
+  NRadioGroup,
+  NSpace,
+  useDialog,
+  useMessage,
+} from 'naive-ui'
 import html2canvas from 'html2canvas'
 import { Message } from './components'
 import { useScroll } from './hooks/useScroll'
@@ -17,6 +31,7 @@ import { useChatStore, usePromptStore } from '@/store'
 import { t } from '@/locales'
 import { bing_search, chat, chatfile } from '@/api/chat'
 import { idStore } from '@/store/modules/knowledgebaseid/id'
+import groupCode from '@/assets/groupCode.png'
 let controller = new AbortController()
 const { iconRender } = useIconRender()
 // const openLongReply = import.meta.env.VITE_GLOB_OPEN_LONG_REPLY === 'true'
@@ -28,14 +43,19 @@ const idstore = idStore()
 const chatStore = useChatStore()
 const history = ref<any>([])
 const { isMobile } = useBasicLayout()
-const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
+const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex }
+	= useChat()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom } = useScroll()
 const { usingContext, toggleUsingContext } = useUsingContext()
 
 const { uuid } = route.params as { uuid: string }
 
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
-const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
+const conversationList = computed(() =>
+  dataSources.value.filter(
+    item => !item.inversion && !!item.conversationOptions,
+  ),
+)
 
 const prompt = ref<string>('')
 const loading = ref<boolean>(false)
@@ -64,47 +84,39 @@ async function handleSubmit() {
     const lastText = ''
     const message = prompt.value
 
-    addChat(
-      +uuid,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: message,
-        inversion: true,
-        error: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: null },
-      },
-    )
+    addChat(+uuid, {
+      dateTime: new Date().toLocaleString(),
+      text: message,
+      inversion: true,
+      error: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, options: null },
+    })
     scrollToBottom()
     const res = await bing_search({ question: prompt.value })
 
-    const result = `${res.data.response}\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
-    addChat(
-      +uuid,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: '',
-        loading: true,
-        inversion: false,
-        error: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      },
-    )
+    const result = `${
+			res.data.response
+		}\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+    addChat(+uuid, {
+      dateTime: new Date().toLocaleString(),
+      text: '',
+      loading: true,
+      inversion: false,
+      error: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, options: { ...options } },
+    })
     scrollToBottom()
-    updateChat(
-      +uuid,
-      dataSources.value.length - 1,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: lastText + (result ?? ''),
-        inversion: false,
-        error: false,
-        loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      },
-    )
+    updateChat(+uuid, dataSources.value.length - 1, {
+      dateTime: new Date().toLocaleString(),
+      text: lastText + (result ?? ''),
+      inversion: false,
+      error: false,
+      loading: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, options: { ...options } },
+    })
     prompt.value = ''
     scrollToBottomIfAtBottom()
     loading.value = false
@@ -118,10 +130,16 @@ async function onConversation() {
   const message = prompt.value
   history.value = []
   if (usingContext.value) {
-    for (let i = 0; i < dataSources.value.length; i = i + 2)
-      history.value.push([dataSources.value[i].text, dataSources.value[i + 1].text.split('\n\n数据来源：\n\n>')[0]])
+    for (let i = 0; i < dataSources.value.length; i = i + 2) {
+      history.value.push([
+        dataSources.value[i].text,
+        dataSources.value[i + 1].text.split('\n\n数据来源：\n\n>')[0],
+      ])
+    }
   }
-  else { history.value.length = 0 }
+  else {
+    history.value.length = 0
+  }
 
   if (loading.value)
     return
@@ -131,40 +149,36 @@ async function onConversation() {
 
   controller = new AbortController()
 
-  addChat(
-    +uuid,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: message,
-      inversion: true,
-      error: false,
-      conversationOptions: null,
-      requestOptions: { prompt: message, options: null },
-    },
-  )
+  addChat(+uuid, {
+    dateTime: new Date().toLocaleString(),
+    text: message,
+    inversion: true,
+    error: false,
+    conversationOptions: null,
+    requestOptions: { prompt: message, options: null },
+  })
   scrollToBottom()
 
   loading.value = true
   prompt.value = ''
 
   let options: Chat.ConversationRequest = {}
-  const lastContext = conversationList.value[conversationList.value.length - 1]?.conversationOptions
+  const lastContext
+		= conversationList.value[conversationList.value.length - 1]
+		  ?.conversationOptions
 
   if (lastContext && usingContext.value)
     options = { ...lastContext }
 
-  addChat(
-    +uuid,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: '',
-      loading: true,
-      inversion: false,
-      error: false,
-      conversationOptions: null,
-      requestOptions: { prompt: message, options: { ...options } },
-    },
-  )
+  addChat(+uuid, {
+    dateTime: new Date().toLocaleString(),
+    text: '',
+    loading: true,
+    inversion: false,
+    error: false,
+    conversationOptions: null,
+    requestOptions: { prompt: message, options: { ...options } },
+  })
   scrollToBottom()
 
   try {
@@ -175,25 +189,25 @@ async function onConversation() {
           knowledge_base_id: idstore.knowledgeid,
           question: message,
           history: history.value,
-        })
+				  })
         : await chat({
           question: message,
           history: history.value,
-        })
-      const result = active.value ? `${res.data.response}\n\n数据来源：\n\n>${res.data.source_documents.join('>')}` : res.data.response
-      updateChat(
-        +uuid,
-        dataSources.value.length - 1,
-        {
-          dateTime: new Date().toLocaleString(),
-          text: lastText + (result ?? ''),
-          inversion: false,
-          error: false,
-          loading: false,
-          conversationOptions: null,
-          requestOptions: { prompt: message, options: { ...options } },
-        },
-      )
+				  })
+      const result = active.value
+        ? `${
+						res.data.response
+				  }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+        : res.data.response
+      updateChat(+uuid, dataSources.value.length - 1, {
+        dateTime: new Date().toLocaleString(),
+        text: lastText + (result ?? ''),
+        inversion: false,
+        error: false,
+        loading: false,
+        conversationOptions: null,
+        requestOptions: { prompt: message, options: { ...options } },
+      })
       scrollToBottomIfAtBottom()
       loading.value = false
       /* await fetchChatAPIProcess<Chat.ConversationResponse>({
@@ -247,45 +261,36 @@ async function onConversation() {
     const errorMessage = error?.message ?? t('common.wrong')
 
     if (error.message === 'canceled') {
-      updateChatSome(
-        +uuid,
-        dataSources.value.length - 1,
-        {
-          loading: false,
-        },
-      )
+      updateChatSome(+uuid, dataSources.value.length - 1, {
+        loading: false,
+      })
       scrollToBottomIfAtBottom()
       return
     }
 
-    const currentChat = getChatByUuidAndIndex(+uuid, dataSources.value.length - 1)
+    const currentChat = getChatByUuidAndIndex(
+      +uuid,
+      dataSources.value.length - 1,
+    )
 
     if (currentChat?.text && currentChat.text !== '') {
-      updateChatSome(
-        +uuid,
-        dataSources.value.length - 1,
-        {
-          text: `${currentChat.text}\n[${errorMessage}]`,
-          error: false,
-          loading: false,
-        },
-      )
+      updateChatSome(+uuid, dataSources.value.length - 1, {
+        text: `${currentChat.text}\n[${errorMessage}]`,
+        error: false,
+        loading: false,
+      })
       return
     }
 
-    updateChat(
-      +uuid,
-      dataSources.value.length - 1,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: errorMessage,
-        inversion: false,
-        error: true,
-        loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      },
-    )
+    updateChat(+uuid, dataSources.value.length - 1, {
+      dateTime: new Date().toLocaleString(),
+      text: errorMessage,
+      inversion: false,
+      error: true,
+      loading: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, options: { ...options } },
+    })
     scrollToBottomIfAtBottom()
   }
   finally {
@@ -309,19 +314,15 @@ async function onRegenerate(index: number) {
 
   loading.value = true
 
-  updateChat(
-    +uuid,
-    index,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: '',
-      inversion: false,
-      error: false,
-      loading: true,
-      conversationOptions: null,
-      requestOptions: { prompt: message, options: { ...options } },
-    },
-  )
+  updateChat(+uuid, index, {
+    dateTime: new Date().toLocaleString(),
+    text: '',
+    inversion: false,
+    error: false,
+    loading: true,
+    conversationOptions: null,
+    requestOptions: { prompt: message, options: { ...options } },
+  })
 
   try {
     const lastText = ''
@@ -331,25 +332,21 @@ async function onRegenerate(index: number) {
           knowledge_base_id: idstore.knowledgeid,
           question: message,
           history: history.value,
-        })
+				  })
         : await chat({
           question: message,
           history: history.value,
-        })
+				  })
       const result = active.value ? res.data.response.text : res.data.response
-      updateChat(
-        +uuid,
-        dataSources.value.length - 1,
-        {
-          dateTime: new Date().toLocaleString(),
-          text: lastText + (result ?? ''),
-          inversion: false,
-          error: false,
-          loading: false,
-          conversationOptions: null,
-          requestOptions: { prompt: message, options: { ...options } },
-        },
-      )
+      updateChat(+uuid, dataSources.value.length - 1, {
+        dateTime: new Date().toLocaleString(),
+        text: lastText + (result ?? ''),
+        inversion: false,
+        error: false,
+        loading: false,
+        conversationOptions: null,
+        requestOptions: { prompt: message, options: { ...options } },
+      })
       scrollToBottomIfAtBottom()
       loading.value = false
       updateChatSome(+uuid, index, { loading: false })
@@ -358,31 +355,23 @@ async function onRegenerate(index: number) {
   }
   catch (error: any) {
     if (error.message === 'canceled') {
-      updateChatSome(
-        +uuid,
-        index,
-        {
-          loading: false,
-        },
-      )
+      updateChatSome(+uuid, index, {
+        loading: false,
+      })
       return
     }
 
     const errorMessage = error?.message ?? t('common.wrong')
 
-    updateChat(
-      +uuid,
-      index,
-      {
-        dateTime: new Date().toLocaleString(),
-        text: errorMessage,
-        inversion: false,
-        error: true,
-        loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      },
-    )
+    updateChat(+uuid, index, {
+      dateTime: new Date().toLocaleString(),
+      text: errorMessage,
+      inversion: false,
+      error: true,
+      loading: false,
+      conversationOptions: null,
+      requestOptions: { prompt: message, options: { ...options } },
+    })
   }
   finally {
     loading.value = false
@@ -488,12 +477,16 @@ function handleStop() {
 // 理想状态下其实应该是key作为索引项,但官方的renderOption会出现问题，所以就需要value反renderLabel实现
 const searchOptions = computed(() => {
   if (prompt.value.startsWith('/')) {
-    return promptTemplate.value.filter((item: { key: string }) => item.key.toLowerCase().includes(prompt.value.substring(1).toLowerCase())).map((obj: { value: any }) => {
-      return {
-        label: obj.value,
-        value: obj.value,
-      }
-    })
+    return promptTemplate.value
+      .filter((item: { key: string }) =>
+        item.key.toLowerCase().includes(prompt.value.substring(1).toLowerCase()),
+      )
+      .map((obj: { value: any }) => {
+        return {
+          label: obj.value,
+          value: obj.value,
+        }
+      })
   }
   else {
     return []
@@ -506,6 +499,7 @@ const renderOption = (option: { label: string }) => {
     if (i.value === option.label)
       return [i.key]
   }
+
   return []
 }
 
@@ -521,8 +515,17 @@ const buttonDisabled = computed(() => {
 
 const footerClass = computed(() => {
   let classes = ['p-4']
-  if (isMobile.value)
-    classes = ['sticky', 'left-0', 'bottom-0', 'right-0', 'p-2', 'pr-3', 'overflow-hidden']
+  if (isMobile.value) {
+    classes = [
+      'sticky',
+      'left-0',
+      'bottom-0',
+      'right-0',
+      'p-2',
+      'pr-3',
+      'overflow-hidden',
+    ]
+  }
   return classes
 })
 const options = computed(() => {
@@ -589,9 +592,7 @@ onUnmounted(() => {
 function searchfun() {
   if (search.value === '知识库')
     active.value = true
-
-  else
-    active.value = false
+  else active.value = false
 }
 </script>
 
@@ -604,14 +605,44 @@ function searchfun() {
       @toggle-using-context="toggleUsingContext"
     />
     <main class="flex-1 overflow-hidden">
-      <div id="scrollRef" ref="scrollRef" class="h-full overflow-hidden overflow-y-auto">
+      <div
+        id="scrollRef"
+        ref="scrollRef"
+        class="h-full overflow-hidden overflow-y-auto"
+      >
+        <div class="p-4">
+          <NAlert type="default">
+            <NGrid x-gap="12" :cols="2">
+              <NGi>
+                <NSpace vertical>
+                  <span>
+                    您好，我是腾讯文旅AI工作助手，可以基于知识库回答您的问题。
+                  </span>
+                  <span>您可以像这样问我：</span>
+                  <span>1. 北京工体项目都有哪些模块</span>
+                  <span>2. 三星堆项目腾讯都建设了什么内容</span>
+                  <span>有任何问题或建议欢迎联系rocketwang</span>
+                </NSpace>
+              </NGi>
+
+              <NGi>
+                <div>
+                  <NImage :src="groupCode" height="auto" />
+                </div>
+              </NGi>
+            </NGrid>
+          </NAlert>
+        </div>
+
         <div
           id="image-wrapper"
           class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
           :class="[isMobile ? 'p-2' : 'p-4']"
         >
           <template v-if="!dataSources.length">
-            <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
+            <div
+              class="flex items-center justify-center mt-4 text-center text-neutral-300"
+            >
               <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
               <span>Aha~</span>
             </div>
@@ -645,7 +676,11 @@ function searchfun() {
     <footer :class="footerClass">
       <div class="w-full max-w-screen-xl m-auto">
         <div class="flex items-center justify-between space-x-2">
-          <NRadioGroup v-if="!isMobile" v-model:value="search" @change="searchfun">
+          <NRadioGroup
+            v-if="!isMobile"
+            v-model:value="search"
+            @change="searchfun"
+          >
             <NRadioButton value="对话" label="对话" />
             <NRadioButton value="知识库" label="知识库" />
             <NRadioButton value="Bing搜索" label="Bing搜索" />
@@ -672,11 +707,21 @@ function searchfun() {
             </span>
           </HoverButton>
           <HoverButton v-if="!isMobile" @click="toggleUsingContext">
-            <span class="text-xl" :class="{ 'text-[#4b9e5f]': usingContext, 'text-[#a8071a]': !usingContext }">
+            <span
+              class="text-xl"
+              :class="{
+                'text-[#4b9e5f]': usingContext,
+                'text-[#a8071a]': !usingContext,
+              }"
+            >
               <SvgIcon icon="ri:chat-history-line" />
             </span>
           </HoverButton>
-          <NAutoComplete v-model:value="prompt" :options="searchOptions" :render-label="renderOption">
+          <NAutoComplete
+            v-model:value="prompt"
+            :options="searchOptions"
+            :render-label="renderOption"
+          >
             <template #default="{ handleInput, handleBlur, handleFocus }">
               <NInput
                 ref="inputRef"
@@ -691,7 +736,11 @@ function searchfun() {
               />
             </template>
           </NAutoComplete>
-          <NButton type="primary" :disabled="buttonDisabled" @click="handleSubmit">
+          <NButton
+            type="primary"
+            :disabled="buttonDisabled"
+            @click="handleSubmit"
+          >
             <template #icon>
               <span class="dark:text-black">
                 <SvgIcon icon="ri:send-plane-fill" />
@@ -705,25 +754,28 @@ function searchfun() {
 </template>
 
 <style>
-#app{
-  background-image: url(../../assets/bg.jpg);
-  background-size:100% 100%;
-
+#app {
+	background-image: url(../../assets/bg.jpg);
+	background-size: 100% 100%;
 }
-.bg-green-50{
-  background-color: rgba(250, 250, 250, 0);
+.bg-green-50 {
+	background-color: rgba(250, 250, 250, 0);
 }
-.n-layout{
-  background-color: rgba(250, 250, 250, 0.5);
+.n-layout {
+	background-color: rgba(250, 250, 250, 0.5);
 }
-.n-layout-sider{
-  background-color: rgba(250, 250, 250, 0.5);
+.n-layout-sider {
+	background-color: rgba(250, 250, 250, 0.5);
 }
-.n-switch__button{
-  font-size: 10px;
+.n-switch__button {
+	font-size: 10px;
 }
-.shadow-md{
-  box-shadow: 0 12px 40px 0 rgba(148,186,215,.2);
-  border: 1px solid ;
+.shadow-md {
+	box-shadow: 0 12px 40px 0 rgba(148, 186, 215, 0.2);
+	border: 1px solid;
+}
+.test-green {
+	background: green;
+	height: 100px;
 }
 </style>
