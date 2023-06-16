@@ -83,6 +83,10 @@ def get_folder_path(local_doc_id: str):
     return os.path.join(KB_ROOT_PATH, local_doc_id, "content")
 
 
+def get_kb_path(kb_id: str):
+    return os.path.join(KB_ROOT_PATH, kb_id)
+
+
 def get_vs_path(local_doc_id: str):
     return os.path.join(KB_ROOT_PATH, local_doc_id, "vector_store")
 
@@ -183,9 +187,9 @@ async def delete_kb(
 ):
     # TODO: 确认是否支持批量删除知识库
     knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
-    if not os.path.exists(get_folder_path(knowledge_base_id)):
+    if not os.path.exists(get_kb_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
-    shutil.rmtree(get_folder_path(knowledge_base_id))
+    shutil.rmtree(get_kb_path(knowledge_base_id))
     return BaseResponse(code=200, msg=f"Knowledge Base {knowledge_base_id} delete success")
 
 
@@ -260,7 +264,6 @@ async def update_doc(
             else:
                 file_status = f"document {old_doc} success but document {new_doc.filename} upload fail"
                 return BaseResponse(code=500, msg=file_status)
-
 
 
 async def local_doc_chat(
