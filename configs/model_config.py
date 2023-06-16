@@ -160,7 +160,7 @@ flagging username: {FLAG_USER_NAME}
 
 # 是否开启跨域，默认为False，如果需要开启，请设置为True
 # is open cross domain
-OPEN_CROSS_DOMAIN = False
+OPEN_CROSS_DOMAIN = True
 
 # Bing 搜索必备变量
 # 使用 Bing 搜索需要使用 Bing Subscription Key,需要在azure port中申请试用bing search
