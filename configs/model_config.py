@@ -27,7 +27,6 @@ EMBEDDING_MODEL = "text2vec"
 # Embedding running device
 EMBEDDING_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
-
 # supported LLM models
 # llm_model_dict 处理了loader的一些预设行为，如加载位置，模型名称，模型处理器实例
 # 在以下字典中修改属性值，以指定本地 LLM 模型存储位置
@@ -174,3 +173,6 @@ BING_SEARCH_URL = "https://api.bing.microsoft.com/v7.0/search"
 # 此外，如果是在服务器上，报Failed to establish a new connection: [Errno 110] Connection timed out
 # 是因为服务器加了防火墙，需要联系管理员加白名单，如果公司的服务器的话，就别想了GG
 BING_SUBSCRIPTION_KEY = ""
+
+# 路由路径
+CONTEXT_PATH = "/ai"

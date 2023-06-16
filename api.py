@@ -17,7 +17,8 @@ from starlette.responses import RedirectResponse
 from chains.local_doc_qa import LocalDocQA
 from configs.model_config import (KB_ROOT_PATH, EMBEDDING_DEVICE,
                                   EMBEDDING_MODEL, NLTK_DATA_PATH,
-                                  VECTOR_SEARCH_TOP_K, LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN)
+                                  VECTOR_SEARCH_TOP_K, LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN,
+                                  CONTEXT_PATH)
 import models.shared as shared
 from models.loader.args import parser
 from models.loader import LoaderCheckPoint
@@ -421,7 +422,7 @@ async def stream_chat(websocket: WebSocket, knowledge_base_id: str):
 
 
 async def document():
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url=f"{CONTEXT_PATH}/docs")
 
 
 def api_start(host, port):
@@ -431,7 +432,10 @@ def api_start(host, port):
     llm_model_ins = shared.loaderLLM()
     llm_model_ins.set_history_len(LLM_HISTORY_LEN)
 
-    app = FastAPI()
+    app = FastAPI(
+        openapi_url=f'{CONTEXT_PATH}/openapi.json',
+        docs_url=f'{CONTEXT_PATH}/docs'
+    )
     # Add CORS middleware to allow all origins
     # 在config.py中设置OPEN_DOMAIN=True，允许跨域
     # set OPEN_DOMAIN=True in config.py to allow cross-domain
