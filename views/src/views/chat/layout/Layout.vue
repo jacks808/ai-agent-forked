@@ -1,24 +1,31 @@
-<script setup lang='ts'>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { NLayout, NLayoutContent } from 'naive-ui'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Sider from './sider/index.vue'
 import Permission from './Permission.vue'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useAppStore, useAuthStore, useChatStore } from '@/store'
 
 const router = useRouter()
+const route = useRoute()
 const appStore = useAppStore()
 const chatStore = useChatStore()
 const authStore = useAuthStore()
 
-router.replace({ name: 'Chat', params: { uuid: chatStore.active } })
+router.replace({
+  name: 'Chat',
+  params: { uuid: chatStore.active },
+  query: { debug: route.query?.debug },
+})
 
-const { isMobile } = useBasicLayout()
+const { isMobile, debug } = useBasicLayout()
 
 const collapsed = computed(() => appStore.siderCollapsed)
 
-const needPermission = computed(() => !!authStore.session?.auth && !authStore.token)
+const needPermission = computed(
+  () => !!authStore.session?.auth && !authStore.token,
+)
 
 const getMobileClass = computed(() => {
   if (isMobile.value)
@@ -29,16 +36,19 @@ const getMobileClass = computed(() => {
 const getContainerClass = computed(() => {
   return [
     'h-full',
-    { 'pl-[260px]': !isMobile.value && !collapsed.value },
+    { 'pl-[260px]': !isMobile.value && !collapsed.value && debug },
   ]
 })
 </script>
 
 <template>
-  <div class="h-full dark:bg-[#24272e] transition-all" :class="[isMobile ? 'p-0' : 'p-4']">
+  <div
+    class="h-full dark:bg-[#24272e] transition-all"
+    :class="[isMobile ? 'p-0' : 'p-4']"
+  >
     <div class="h-full overflow-hidden" :class="getMobileClass">
       <NLayout class="z-40 transition" :class="getContainerClass" has-sider>
-        <Sider />
+        <Sider v-if="debug" />
         <NLayoutContent class="h-full">
           <RouterView v-slot="{ Component, route }">
             <component :is="Component" :key="route.fullPath" />

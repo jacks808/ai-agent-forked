@@ -42,13 +42,15 @@ const ms = useMessage()
 const idstore = idStore()
 const chatStore = useChatStore()
 const history = ref<any>([])
-const { isMobile } = useBasicLayout()
+const { isMobile, debug } = useBasicLayout()
 const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex }
 	= useChat()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom } = useScroll()
 const { usingContext, toggleUsingContext } = useUsingContext()
 
 const { uuid } = route.params as { uuid: string }
+
+idstore.initValue()
 
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
 const conversationList = computed(() =>
@@ -60,7 +62,7 @@ const conversationList = computed(() =>
 const prompt = ref<string>('')
 const loading = ref<boolean>(false)
 const inputRef = ref<Ref | null>(null)
-const search = ref<string>('对话')
+const search = ref<string>('知识库')
 
 // 添加PromptStore
 const promptStore = usePromptStore()
@@ -69,7 +71,7 @@ const promptStore = usePromptStore()
 const { promptList: promptTemplate } = storeToRefs<any>(promptStore)
 
 // 是否开启知识库问答
-const active = ref<boolean>(false)
+const active = ref<boolean>(true)
 
 // 未知原因刷新页面，loading 状态不会重置，手动重置
 dataSources.value.forEach((item, index) => {
@@ -184,6 +186,7 @@ async function onConversation() {
   try {
     const lastText = ''
     const fetchChatAPIOnce = async () => {
+      console.log(idstore.knowledgeid, 'handleSubmit')
       const res = active.value
         ? await chatfile({
           knowledge_base_id: idstore.knowledgeid,
@@ -612,7 +615,7 @@ function searchfun() {
       >
         <div class="p-4">
           <NAlert type="default">
-            <NGrid x-gap="12" :cols="2">
+            <NGrid :cols="2">
               <NGi>
                 <NSpace vertical>
                   <span>
@@ -626,8 +629,8 @@ function searchfun() {
               </NGi>
 
               <NGi>
-                <div>
-                  <NImage :src="groupCode" height="auto" />
+                <div class="flex items-center justify-end">
+                  <NImage :src="groupCode" width="150" />
                 </div>
               </NGi>
             </NGrid>
@@ -677,7 +680,7 @@ function searchfun() {
       <div class="w-full max-w-screen-xl m-auto">
         <div class="flex items-center justify-between space-x-2">
           <NRadioGroup
-            v-if="!isMobile"
+            v-if="!isMobile && debug"
             v-model:value="search"
             @change="searchfun"
           >
@@ -691,7 +694,7 @@ function searchfun() {
             </span>
           </HoverButton>
           <NDropdown
-            v-if="isMobile"
+            v-if="isMobile && debug"
             :trigger="isMobile ? 'click' : 'hover'"
             :placement="!inversion ? 'right' : 'left'"
             :options="options"

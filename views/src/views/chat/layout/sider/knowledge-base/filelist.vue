@@ -41,7 +41,7 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
   <NUpload
     multiple
     directory-dnd
-    :action="setapi() === undefined ? `${web_url()}/api/local_doc_qa/upload_file` : `${setapi()}local_doc_qa/upload_file`"
+    :action="setapi() === undefined ? `${web_url()}/api/local_doc_qa/upload_file` : `${setapi()}/local_doc_qa/upload_file`"
     :headers="{
       'naive-info': 'hello!',
     }"
