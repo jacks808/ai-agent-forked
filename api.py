@@ -79,7 +79,7 @@ class ChatMessage(BaseModel):
         }
 
 
-def get_folder_path(local_doc_id: str):
+def get_content_path(local_doc_id: str):
     return os.path.join(KB_ROOT_PATH, local_doc_id, "content")
 
 
@@ -99,7 +99,7 @@ async def upload_file(
         file: UploadFile = File(description="A single binary file"),
         knowledge_base_id: str = Form(..., description="Knowledge Base Name", example="kb1"),
 ):
-    saved_path = get_folder_path(knowledge_base_id)
+    saved_path = get_content_path(knowledge_base_id)
     if not os.path.exists(saved_path):
         os.makedirs(saved_path)
 
@@ -129,7 +129,7 @@ async def upload_files(
         ],
         knowledge_base_id: str = Form(..., description="Knowledge Base Name", example="kb1"),
 ):
-    saved_path = get_folder_path(knowledge_base_id)
+    saved_path = get_content_path(knowledge_base_id)
     if not os.path.exists(saved_path):
         os.makedirs(saved_path)
     filelist = []
@@ -169,7 +169,7 @@ async def list_kbs():
 async def list_docs(
         knowledge_base_id: Optional[str] = Query(default=None, description="Knowledge Base Name", example="kb1")
 ):
-    local_doc_folder = get_folder_path(knowledge_base_id)
+    local_doc_folder = get_content_path(knowledge_base_id)
     if not os.path.exists(local_doc_folder):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
     all_doc_names = [
@@ -202,14 +202,14 @@ async def delete_doc(
         ),
 ):
     knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
-    if not os.path.exists(get_folder_path(knowledge_base_id)):
+    if not os.path.exists(get_content_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
     doc_path = get_file_path(knowledge_base_id, doc_name)
     if os.path.exists(doc_path):
         os.remove(doc_path)
         remain_docs = await list_docs(knowledge_base_id)
         if len(remain_docs.data) == 0:
-            shutil.rmtree(get_folder_path(knowledge_base_id), ignore_errors=True)
+            shutil.rmtree(get_content_path(knowledge_base_id), ignore_errors=True)
             return BaseResponse(code=200, msg=f"document {doc_name} delete success")
         else:
             status = local_doc_qa.delete_file_from_vector_store(doc_path, get_vs_path(knowledge_base_id))
@@ -231,7 +231,7 @@ async def update_doc(
         new_doc: UploadFile = File(description="待上传文件"),
 ):
     knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
-    if not os.path.exists(get_folder_path(knowledge_base_id)):
+    if not os.path.exists(get_content_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
     doc_path = get_file_path(knowledge_base_id, old_doc)
     if not os.path.exists(doc_path):
@@ -242,7 +242,7 @@ async def update_doc(
         if "fail" in delete_status:
             return BaseResponse(code=1, msg=f"document {old_doc} delete failed")
         else:
-            saved_path = get_folder_path(knowledge_base_id)
+            saved_path = get_content_path(knowledge_base_id)
             if not os.path.exists(saved_path):
                 os.makedirs(saved_path)
 
