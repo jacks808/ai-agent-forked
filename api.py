@@ -80,18 +80,30 @@ class ChatMessage(BaseModel):
 
 
 def get_content_path(local_doc_id: str):
+    """
+    获取知识库文档存储路径
+    """
     return os.path.join(KB_ROOT_PATH, local_doc_id, "content")
 
 
 def get_kb_path(kb_id: str):
+    """
+    获取知识库路径
+    """
     return os.path.join(KB_ROOT_PATH, kb_id)
 
 
 def get_vs_path(local_doc_id: str):
+    """
+    获取知识库 `vector store 路径
+    """
     return os.path.join(KB_ROOT_PATH, local_doc_id, "vector_store")
 
 
 def get_file_path(local_doc_id: str, doc_name: str):
+    """
+    获取知识库文件存储路径
+    """
     return os.path.join(KB_ROOT_PATH, local_doc_id, "content", doc_name)
 
 
