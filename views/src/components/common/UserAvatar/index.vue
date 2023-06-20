@@ -1,12 +1,6 @@
 <script setup lang='ts'>
-import { computed } from 'vue'
 import { NAvatar } from 'naive-ui'
-import { useUserStore } from '@/store'
 import logo from '@/assets/logo.png'
-
-const userStore = useUserStore()
-
-const userInfo = computed(() => userStore.userInfo)
 </script>
 
 <template>

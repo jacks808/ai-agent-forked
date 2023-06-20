@@ -1,1 +1,1 @@
-window.baseApi = 'https://dev.paas.tourismshow.cn/kong-gw/ai'
+window.baseApi = 'https://ai.paas.tourismshow.cn/ai'

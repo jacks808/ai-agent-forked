@@ -1,4 +1,4 @@
-<script setup lang='ts'>
+<script setup lang="ts">
 import type { CSSProperties } from 'vue'
 import { computed, ref, watch } from 'vue'
 import { NButton, NLayoutSider, NRadioButton, NRadioGroup } from 'naive-ui'
@@ -42,9 +42,12 @@ const mobileSafeArea = computed(() => {
   if (isMobile.value) {
     return {
       paddingBottom: 'env(safe-area-inset-bottom)',
+      minHeight: 'calc("100%" - 73px)',
     }
   }
-  return {}
+  return {
+    minHeight: 'calc("100%" - 73px)',
+  }
 })
 
 const songs = [
@@ -82,7 +85,7 @@ watch(
   <NLayoutSider
     :collapsed="collapsed"
     :collapsed-width="0"
-    :width="260"
+    :width="280"
     :show-trigger="isMobile ? false : 'arrow-circle'"
     collapse-mode="transform"
     position="absolute"
@@ -91,9 +94,9 @@ watch(
     @update-collapsed="handleUpdateCollapsed"
   >
     <Footer />
-    <div class="flex flex-col h-full " :style="mobileSafeArea">
+    <div class="flex flex-col" :style="mobileSafeArea">
       <main class="flex flex-col flex-1 min-h-0">
-        <div class="  flex justify-between">
+        <div class="flex justify-between">
           <NRadioGroup v-model:value="menu" name="radiobuttongroup1">
             <NRadioButton
               v-for="song in songs"
@@ -125,7 +128,11 @@ watch(
     </div>
   </NLayoutSider>
   <template v-if="isMobile">
-    <div v-show="!collapsed" class="fixed inset-0 z-40 w-full h-full bg-black/40" @click="handleUpdateCollapsed" />
+    <div
+      v-show="!collapsed"
+      class="fixed inset-0 z-40 w-full h-full bg-black/40"
+      @click="handleUpdateCollapsed"
+    />
   </template>
   <!-- <PromptStore v-model:visible="show" /> -->
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
@@ -29,8 +29,8 @@ import { useIconRender } from '@/hooks/useIconRender'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useChatStore, usePromptStore } from '@/store'
 import { t } from '@/locales'
-import { bing_search, chat, chatfile } from '@/api/chat'
-import { idStore } from '@/store/modules/knowledgebaseid/id'
+import { bing_search, chat } from '@/api/chat'
+import { useIdStore } from '@/store/modules/knowledgebaseid/id'
 import groupCode from '@/assets/groupCode.png'
 let controller = new AbortController()
 const { iconRender } = useIconRender()
@@ -39,18 +39,22 @@ const { iconRender } = useIconRender()
 const route = useRoute()
 const dialog = useDialog()
 const ms = useMessage()
-const idstore = idStore()
+const idStore = useIdStore()
 const chatStore = useChatStore()
 const history = ref<any>([])
 const { isMobile, debug } = useBasicLayout()
 const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex }
-	= useChat()
+  = useChat()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom } = useScroll()
 const { usingContext, toggleUsingContext } = useUsingContext()
 
 const { uuid } = route.params as { uuid: string }
 
-idstore.initValue()
+const { knowledgeId } = storeToRefs(idStore)
+
+onBeforeMount(() => {
+  idStore.initValue()
+})
 
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
 const conversationList = computed(() =>
@@ -79,6 +83,73 @@ dataSources.value.forEach((item, index) => {
     updateChatSome(+uuid, index, { loading: false })
 })
 
+const socketRef = shallowRef<WebSocket>()
+
+onBeforeUnmount(() => {
+  socketRef.value?.close()
+})
+
+function createWebSocket(knowledgeId: string) {
+  if (knowledgeId) {
+    if (socketRef.value && socketRef.value.readyState === WebSocket.OPEN) {
+      socketRef.value.close()
+    }
+    else {
+      const socket = new WebSocket(
+        `wss://ai.paas.tourismshow.cn/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
+      )
+
+      let lastText = ''
+      let lastQuestion = ''
+
+      socket.addEventListener('message', ({ data }) => {
+        if (data.startsWith('{')) {
+          const { flag, question, sources_documents } = JSON.parse(data)
+          if (flag === 'start') {
+            lastText = ''
+            lastQuestion = question
+            loading.value = true
+          }
+
+          else {
+            loading.value = false
+            updateChat(+uuid, dataSources.value.length - 1, {
+              dateTime: new Date().toLocaleString(),
+              text: `${lastText}\n\n数据来源：\n\n>${sources_documents.map((str: string) => str.replaceAll('\n\n', '\n\n>').replace(/\n\n>$/g, '\n\n')).join('>')}`,
+              inversion: false,
+              error: false,
+              loading: false,
+              conversationOptions: null,
+              requestOptions: { prompt: lastQuestion, options: {} },
+            })
+            scrollToBottom()
+            scrollToBottomIfAtBottom()
+            updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+          }
+        }
+        else {
+          scrollToBottom()
+          lastText += data
+          updateChat(+uuid, dataSources.value.length - 1, {
+            dateTime: new Date().toLocaleString(),
+            text: lastText,
+            inversion: false,
+            error: false,
+            loading: false,
+            conversationOptions: null,
+            requestOptions: { prompt: lastQuestion, options: {} },
+          })
+          scrollToBottomIfAtBottom()
+        }
+      })
+
+      socketRef.value = socket
+    }
+  }
+}
+
+watch(knowledgeId, createWebSocket)
+
 async function handleSubmit() {
   if (search.value === 'Bing搜索') {
     loading.value = true
@@ -97,9 +168,8 @@ async function handleSubmit() {
     scrollToBottom()
     const res = await bing_search({ question: prompt.value })
 
-    const result = `${
-			res.data.response
-		}\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+    const result = `${res.data.response
+      }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
     addChat(+uuid, {
       dateTime: new Date().toLocaleString(),
       text: '',
@@ -166,8 +236,8 @@ async function onConversation() {
 
   let options: Chat.ConversationRequest = {}
   const lastContext
-		= conversationList.value[conversationList.value.length - 1]
-		  ?.conversationOptions
+    = conversationList.value[conversationList.value.length - 1]
+      ?.conversationOptions
 
   if (lastContext && usingContext.value)
     options = { ...lastContext }
@@ -186,76 +256,94 @@ async function onConversation() {
   try {
     const lastText = ''
     const fetchChatAPIOnce = async () => {
-      console.log(idstore.knowledgeid, 'handleSubmit')
-      const res = active.value
-        ? await chatfile({
-          knowledge_base_id: idstore.knowledgeid,
+      if (active.value) {
+        if (socketRef.value) {
+          loading.value = true
+          if (socketRef.value.readyState === WebSocket.OPEN) {
+            socketRef.value.send(JSON.stringify({
+              question: message,
+              history: history.value,
+              knowledge_base_id: knowledgeId.value,
+            }))
+          }
+          else {
+            await new Promise((resolve) => {
+              socketRef.value?.addEventListener('open', () => {
+                socketRef.value?.send(JSON.stringify({
+                  question: message,
+                  history: history.value,
+                  knowledge_base_id: knowledgeId.value,
+                }))
+                resolve(null)
+              })
+            })
+          }
+        }
+      }
+      else {
+        const res = await chat({
           question: message,
           history: history.value,
-				  })
-        : await chat({
-          question: message,
-          history: history.value,
-				  })
-      const result = active.value
-        ? `${
-						res.data.response
-				  }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
-        : res.data.response
-      updateChat(+uuid, dataSources.value.length - 1, {
-        dateTime: new Date().toLocaleString(),
-        text: lastText + (result ?? ''),
-        inversion: false,
-        error: false,
-        loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      })
-      scrollToBottomIfAtBottom()
-      loading.value = false
-      /* await fetchChatAPIProcess<Chat.ConversationResponse>({
-        prompt: message,
-        options,
-        signal: controller.signal,
-        onDownloadProgress: ({ event }) => {
-          const xhr = event.target
-          const { responseText } = xhr
-          // Always process the final line
-          const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
-          let chunk = responseText
-          if (lastIndex !== -1)
-            chunk = responseText.substring(lastIndex)
-          try {
-            const data = JSON.parse(chunk)
-            updateChat(
-              +uuid,
-              dataSources.value.length - 1,
-              {
-                dateTime: new Date().toLocaleString(),
-                text: lastText + (data.text ?? ''),
-                inversion: false,
-                error: false,
-                loading: true,
-                conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-                requestOptions: { prompt: message, options: { ...options } },
-              },
-            )
+        })
+        const result = active.value
+          ? `${res.data.response
+          }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+          : res.data.response
+        updateChat(+uuid, dataSources.value.length - 1, {
+          dateTime: new Date().toLocaleString(),
+          text: lastText + (result ?? ''),
+          inversion: false,
+          error: false,
+          loading: false,
+          conversationOptions: null,
+          requestOptions: { prompt: message, options: { ...options } },
+        })
+        scrollToBottomIfAtBottom()
+        loading.value = false
+        /* await fetchChatAPIProcess<Chat.ConversationResponse>({
+          prompt: message,
+          options,
+          signal: controller.signal,
+          onDownloadProgress: ({ event }) => {
+            const xhr = event.target
+            const { responseText } = xhr
+            // Always process the final line
+            const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
+            let chunk = responseText
+            if (lastIndex !== -1)
+              chunk = responseText.substring(lastIndex)
+            try {
+              const data = JSON.parse(chunk)
+              updateChat(
+                +uuid,
+                dataSources.value.length - 1,
+                {
+                  dateTime: new Date().toLocaleString(),
+                  text: lastText + (data.text ?? ''),
+                  inversion: false,
+                  error: false,
+                  loading: true,
+                  conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
+                  requestOptions: { prompt: message, options: { ...options } },
+                },
+              )
 
-            if (openLongReply && data.detail.choices[0].finish_reason === 'length') {
-              options.parentMessageId = data.id
-              lastText = data.text
-              message = ''
-              return fetchChatAPIOnce()
+              if (openLongReply && data.detail.choices[0].finish_reason === 'length') {
+                options.parentMessageId = data.id
+                lastText = data.text
+                message = ''
+                return fetchChatAPIOnce()
+              }
+
+              scrollToBottomIfAtBottom()
             }
-
-            scrollToBottomIfAtBottom()
-          }
-          catch (error) {
-            //
-          }
-        },
-      }) */
-      updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+            catch (error) {
+              //
+            }
+          },
+        }) */
+        updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+      }
     }
 
     await fetchChatAPIOnce()
@@ -330,29 +418,32 @@ async function onRegenerate(index: number) {
   try {
     const lastText = ''
     const fetchChatAPIOnce = async () => {
-      const res = active.value
-        ? await chatfile({
-          knowledge_base_id: idstore.knowledgeid,
+      if (active.value) {
+        socketRef.value?.send(JSON.stringify({
           question: message,
           history: history.value,
-				  })
-        : await chat({
+          knowledge_base_id: knowledgeId.value,
+        }))
+      }
+      else {
+        const res = await chat({
           question: message,
           history: history.value,
-				  })
-      const result = active.value ? res.data.response.text : res.data.response
-      updateChat(+uuid, dataSources.value.length - 1, {
-        dateTime: new Date().toLocaleString(),
-        text: lastText + (result ?? ''),
-        inversion: false,
-        error: false,
-        loading: false,
-        conversationOptions: null,
-        requestOptions: { prompt: message, options: { ...options } },
-      })
-      scrollToBottomIfAtBottom()
-      loading.value = false
-      updateChatSome(+uuid, index, { loading: false })
+        })
+        const result = active.value ? res.data.response.text : res.data.response
+        updateChat(+uuid, dataSources.value.length - 1, {
+          dateTime: new Date().toLocaleString(),
+          text: lastText + (result ?? ''),
+          inversion: false,
+          error: false,
+          loading: false,
+          conversationOptions: null,
+          requestOptions: { prompt: message, options: { ...options } },
+        })
+        scrollToBottomIfAtBottom()
+        loading.value = false
+        updateChatSome(+uuid, index, { loading: false })
+      }
     }
     await fetchChatAPIOnce()
   }
@@ -470,6 +561,12 @@ function handleEnter(event: KeyboardEvent) {
 
 function handleStop() {
   if (loading.value) {
+    if (socketRef.value) {
+      createWebSocket(knowledgeId.value)
+      updateChatSome(+uuid, dataSources.value.length - 1, {
+        loading: false,
+      })
+    }
     controller.abort()
     loading.value = false
   }
@@ -561,8 +658,8 @@ const options = computed(() => {
 
   return common
 })
-function handleSelect(key: 'copyText' | 'delete' | 'toggleRenderType') {
-  if (key == '清除会话') {
+function handleSelect(key: 'Bing搜索' | '清除会话' | '知识库') {
+  if (key === '清除会话') {
     handleClear()
   }
   else {
@@ -602,17 +699,11 @@ function searchfun() {
 <template>
   <div class="flex flex-col w-full h-full bg-green-50">
     <HeaderComponent
-      v-if="isMobile"
-      :using-context="usingContext"
-      @export="handleExport"
+      v-if="isMobile" :using-context="usingContext" @export="handleExport"
       @toggle-using-context="toggleUsingContext"
     />
     <main class="flex-1 overflow-hidden">
-      <div
-        id="scrollRef"
-        ref="scrollRef"
-        class="h-full overflow-hidden overflow-y-auto"
-      >
+      <div id="scrollRef" ref="scrollRef" class="h-full overflow-hidden overflow-y-auto">
         <div class="p-4">
           <NAlert type="default">
             <NGrid :cols="2">
@@ -638,14 +729,11 @@ function searchfun() {
         </div>
 
         <div
-          id="image-wrapper"
-          class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
+          id="image-wrapper" class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
           :class="[isMobile ? 'p-2' : 'p-4']"
         >
           <template v-if="!dataSources.length">
-            <div
-              class="flex items-center justify-center mt-4 text-center text-neutral-300"
-            >
+            <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
               <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
               <span>Aha~</span>
             </div>
@@ -653,14 +741,8 @@ function searchfun() {
           <template v-else>
             <div>
               <Message
-                v-for="(item, index) of dataSources"
-                :key="index"
-                :date-time="item.dateTime"
-                :text="item.text"
-                :inversion="item.inversion"
-                :error="item.error"
-                :loading="item.loading"
-                @regenerate="onRegenerate(index)"
+                v-for="(item, index) of dataSources" :key="index" :date-time="item.dateTime" :text="item.text"
+                :inversion="item.inversion" :error="item.error" :loading="item.loading" @regenerate="onRegenerate(index)"
                 @delete="handleDelete(index)"
               />
               <div class="sticky bottom-0 left-0 flex justify-center">
@@ -679,11 +761,7 @@ function searchfun() {
     <footer :class="footerClass">
       <div class="w-full max-w-screen-xl m-auto">
         <div class="flex items-center justify-between space-x-2">
-          <NRadioGroup
-            v-if="!isMobile && debug"
-            v-model:value="search"
-            @change="searchfun"
-          >
+          <NRadioGroup v-if="!isMobile && debug" v-model:value="search" @change="searchfun">
             <NRadioButton value="对话" label="对话" />
             <NRadioButton value="知识库" label="知识库" />
             <NRadioButton value="Bing搜索" label="Bing搜索" />
@@ -694,10 +772,7 @@ function searchfun() {
             </span>
           </HoverButton>
           <NDropdown
-            v-if="isMobile && debug"
-            :trigger="isMobile ? 'click' : 'hover'"
-            :placement="!inversion ? 'right' : 'left'"
-            :options="options"
+            v-if="isMobile && debug" :trigger="isMobile ? 'click' : 'hover'" placement="right" :options="options"
             @select="handleSelect"
           >
             <button>
@@ -711,8 +786,7 @@ function searchfun() {
           </HoverButton>
           <HoverButton v-if="!isMobile" @click="toggleUsingContext">
             <span
-              class="text-xl"
-              :class="{
+              class="text-xl" :class="{
                 'text-[#4b9e5f]': usingContext,
                 'text-[#a8071a]': !usingContext,
               }"
@@ -720,30 +794,16 @@ function searchfun() {
               <SvgIcon icon="ri:chat-history-line" />
             </span>
           </HoverButton>
-          <NAutoComplete
-            v-model:value="prompt"
-            :options="searchOptions"
-            :render-label="renderOption"
-          >
+          <NAutoComplete v-model:value="prompt" :options="searchOptions" :render-label="renderOption">
             <template #default="{ handleInput, handleBlur, handleFocus }">
               <NInput
-                ref="inputRef"
-                v-model:value="prompt"
-                type="textarea"
-                :placeholder="placeholder"
-                :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }"
-                @input="handleInput"
-                @focus="handleFocus"
-                @blur="handleBlur"
-                @keypress="handleEnter"
+                ref="inputRef" v-model:value="prompt" type="textarea" :placeholder="placeholder"
+                :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }" @input="handleInput" @focus="handleFocus"
+                @blur="handleBlur" @keypress="handleEnter"
               />
             </template>
           </NAutoComplete>
-          <NButton
-            type="primary"
-            :disabled="buttonDisabled"
-            @click="handleSubmit"
-          >
+          <NButton type="primary" :disabled="buttonDisabled" @click="handleSubmit">
             <template #icon>
               <span class="dark:text-black">
                 <SvgIcon icon="ri:send-plane-fill" />
@@ -758,27 +818,33 @@ function searchfun() {
 
 <style>
 #app {
-	background-image: url(../../assets/bg.jpg);
-	background-size: 100% 100%;
+  background-image: url(../../assets/bg.jpg);
+  background-size: 100% 100%;
 }
+
 .bg-green-50 {
-	background-color: rgba(250, 250, 250, 0);
+  background-color: rgba(250, 250, 250, 0);
 }
+
 .n-layout {
-	background-color: rgba(250, 250, 250, 0.5);
+  background-color: rgba(250, 250, 250, 0.5);
 }
+
 .n-layout-sider {
-	background-color: rgba(250, 250, 250, 0.5);
+  background-color: rgba(250, 250, 250, 0.5);
 }
+
 .n-switch__button {
-	font-size: 10px;
+  font-size: 10px;
 }
+
 .shadow-md {
-	box-shadow: 0 12px 40px 0 rgba(148, 186, 215, 0.2);
-	border: 1px solid;
+  box-shadow: 0 12px 40px 0 rgba(148, 186, 215, 0.2);
+  border: 1px solid;
 }
+
 .test-green {
-	background: green;
-	height: 100px;
+  background: green;
+  height: 100px;
 }
 </style>

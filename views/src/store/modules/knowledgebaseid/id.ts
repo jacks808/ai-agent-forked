@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia'
 import { getKnowledge } from '@/api/chat'
 
-export const idStore = defineStore('idStore', {
+export const useIdStore = defineStore('idStore', {
   state: () => {
     return {
-      knowledgeid: 'samples',
+      knowledgeId: '',
     }
   },
 
   actions: {
     async initValue() {
       const res = await getKnowledge()
-      this.knowledgeid = res.data.data?.[0]
+      this.knowledgeId = res.data.data?.[0]
     },
   },
 })
