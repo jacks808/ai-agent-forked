@@ -1,8 +1,8 @@
-import torch.cuda
-import torch.backends
-import os
 import logging
+import os
 import uuid
+
+import torch.backends
 
 LOG_FORMAT = "%(levelname) -5s %(asctime)s" "-1d: %(message)s"
 logger = logging.getLogger()
@@ -176,3 +176,6 @@ BING_SUBSCRIPTION_KEY = ""
 
 # 路由路径
 CONTEXT_PATH = "/ai"
+
+# WebSocket 前缀
+WS_PREFIX = "/ai/socket"

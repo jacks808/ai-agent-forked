@@ -18,7 +18,7 @@ from chains.local_doc_qa import LocalDocQA
 from configs.model_config import (KB_ROOT_PATH, EMBEDDING_DEVICE,
                                   EMBEDDING_MODEL, NLTK_DATA_PATH,
                                   VECTOR_SEARCH_TOP_K, LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN,
-                                  CONTEXT_PATH)
+                                  CONTEXT_PATH, WS_PREFIX)
 import models.shared as shared
 from models.loader.args import parser
 from models.loader import LoaderCheckPoint
@@ -129,7 +129,7 @@ async def upload_file(
 
     vs_path = get_vs_path(knowledge_base_id)
     vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store([
-                                                                     file_path], vs_path)
+        file_path], vs_path)
     if len(loaded_files) > 0:
         file_status = f"文件 {file.filename} 已上传至新的知识库，并已加载知识库，请开始提问。"
         return BaseResponse(code=200, msg=file_status)
@@ -177,7 +177,7 @@ async def list_kbs():
             folder
             for folder in os.listdir(KB_ROOT_PATH)
             if os.path.isdir(os.path.join(KB_ROOT_PATH, folder))
-            and os.path.exists(os.path.join(KB_ROOT_PATH, folder, "vector_store", "index.faiss"))
+               and os.path.exists(os.path.join(KB_ROOT_PATH, folder, "vector_store", "index.faiss"))
         ]
 
     return ListDocsResponse(data=all_doc_ids)
@@ -279,7 +279,7 @@ async def update_doc(
 
             vs_path = get_vs_path(knowledge_base_id)
             vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store([
-                                                                             file_path], vs_path)
+                file_path], vs_path)
             if len(loaded_files) > 0:
                 file_status = f"document {old_doc} delete and document {new_doc.filename} upload success"
                 return BaseResponse(code=200, msg=file_status)
@@ -458,7 +458,7 @@ def api_start(host, port):
             allow_headers=["*"],
         )
     app.websocket(
-        "/local_doc_qa/stream-chat/{knowledge_base_id}")(stream_chat)
+        f"{WS_PREFIX}/local_doc_qa/stream-chat/{{knowledge_base_id}}")(stream_chat)
 
     app.get("/", response_model=BaseResponse)(document)
 
