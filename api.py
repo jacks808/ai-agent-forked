@@ -458,7 +458,7 @@ def api_start(host, port):
             allow_headers=["*"],
         )
     app.websocket(
-        f"{CONTEXT_PATH}/local_doc_qa/stream-chat/{{knowledge_base_id}}")(stream_chat)
+        "/local_doc_qa/stream-chat/{knowledge_base_id}")(stream_chat)
 
     app.get("/", response_model=BaseResponse)(document)
 
