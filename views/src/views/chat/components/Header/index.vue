@@ -5,15 +5,12 @@ import { useRoute } from 'vue-router'
 import { HoverButton, SvgIcon } from '@/components/common'
 import { useAppStore, useChatStore } from '@/store'
 import { t } from '@/locales'
-import { useBasicLayout } from '@/hooks/useBasicLayout'
 
 defineProps<Props>()
 
 const emit = defineEmits<Emit>()
 
 const route = useRoute()
-
-const { debug } = useBasicLayout()
 
 const { uuid } = route.params as { uuid: string }
 
@@ -74,7 +71,7 @@ function handleClear() {
     <div
       class="relative flex items-center justify-between min-w-0 overflow-hidden h-14"
     >
-      <div v-if="debug" class="flex items-center">
+      <div class="flex items-center">
         <button
           class="flex items-center justify-center w-11 h-11"
           @click="handleUpdateCollapsed"

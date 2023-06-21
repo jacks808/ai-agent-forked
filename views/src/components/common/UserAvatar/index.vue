@@ -21,7 +21,7 @@ import logo from '@/assets/logo.png'
     </div>
     <div class="flex-1 min-w-0 ml-2">
       <h1 class="overflow-hidden font-bold  text-3xl text-ellipsis whitespace-nowrap">
-        &nbsp;文旅助手
+        &nbsp;文旅AI助手
       </h1>
       <!--  <p class="overflow-hidden text-xs text-gray-500 text-ellipsis whitespace-nowrap">
         <span

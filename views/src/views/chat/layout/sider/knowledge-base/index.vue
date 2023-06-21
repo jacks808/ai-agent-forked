@@ -5,9 +5,11 @@ import filelist from './filelist.vue'
 import { SvgIcon } from '@/components/common'
 import { deleteKnowledge, getKnowledge } from '@/api/chat'
 import { useIdStore } from '@/store/modules/knowledgebaseid/id'
+import { useBasicLayout } from '@/hooks/useBasicLayout'
 const items = ref<any>([])
 const choice = ref('')
 const store = useIdStore()
+const { debug } = useBasicLayout()
 
 onMounted(async () => {
   const res = await getKnowledge()
@@ -15,7 +17,7 @@ onMounted(async () => {
   res.data.data.forEach((item: any) => {
     items.value.push({
       value: item,
-      show: false,
+      show: true,
     })
   })
 })
@@ -63,21 +65,24 @@ async function handleDelete(item: any) {
 </script>
 
 <template>
-  <NButton block size="large">
-    对话知识库：{{ choice }}
-  </NButton>
-  <NForm ref="formRef" inline :label-width="80" :model="formValue" :rules="rules">
-    <NFormItem label="" path="user.name">
-      <NInput v-model:value="formValue.user.name" placeholder="起个知识库名吧！" />
-    </NFormItem>
-    <NFormItem>
-      <NButton attr-type="button" @click="handleClick">
-        新增
-      </NButton>
-    </NFormItem>
-  </NForm>
+  <div v-if="debug">
+    <NButton block size="large">
+      对话知识库：{{ choice }}
+    </NButton>
+    <NForm ref="formRef" inline :label-width="80" :model="formValue" :rules="rules">
+      <NFormItem label="" path="user.name">
+        <NInput v-model:value="formValue.user.name" placeholder="起个知识库名吧！" />
+      </NFormItem>
+      <NFormItem>
+        <NButton attr-type="button" @click="handleClick">
+          新增
+        </NButton>
+      </NFormItem>
+    </NForm>
+  </div>
+
   <div v-for="item in items" :key="item.value">
-    <div class="flex items-center relative">
+    <div v-if="debug" class="flex items-center relative">
       <NButton block size="large" style="width: 90%" @click="handleValidateClick(item.value)">
         {{ item.value }}
       </NButton>

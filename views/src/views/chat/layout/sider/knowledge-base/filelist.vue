@@ -1,6 +1,6 @@
 <script setup lang='ts'>
 import { onMounted, ref, toRef } from 'vue'
-import { NInput, NP, NPopconfirm, NScrollbar, NText, NUpload, NUploadDragger } from 'naive-ui'
+import { NInput, NP, NPopconfirm, NScrollbar, NText, NTooltip, NUpload, NUploadDragger } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
 import { useChatStore } from '@/store'
 import { deleteKnowledgeFile, getKnowledgeFiles, setapi, web_url } from '@/api/chat'
@@ -75,14 +75,19 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
             <span>
               <SvgIcon icon="ri:message-3-line" />
             </span>
-            <div class="relative flex-1 overflow-hidden break-all text-ellipsis whitespace-nowrap">
-              <NInput
-                v-if="item.isEdit"
-                v-model:value="item.title" size="tiny"
-                @keypress="handleEnter(item, false, $event)"
-              />
-              <span v-else>{{ item }}</span>
-            </div>
+            <NTooltip trigger="hover">
+              <template #trigger>
+                <div class="relative flex-1 overflow-hidden break-all text-ellipsis whitespace-nowrap">
+                  <NInput
+                    v-if="item.isEdit"
+                    v-model:value="item.title" size="tiny"
+                    @keypress="handleEnter(item, false, $event)"
+                  />
+                  <span v-else>{{ item }}</span>
+                </div>
+              </template>
+              {{ item }}
+            </NTooltip>
 
           </a>
           <div class="absolute z-10 flex visible right-1">

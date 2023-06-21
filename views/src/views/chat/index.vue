@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import {
+  computed,
+  onBeforeMount,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
@@ -31,7 +40,7 @@ import { useChatStore, usePromptStore } from '@/store'
 import { t } from '@/locales'
 import { bing_search, chat } from '@/api/chat'
 import { useIdStore } from '@/store/modules/knowledgebaseid/id'
-import groupCode from '@/assets/groupCode.png'
+import qrCode from '@/assets/qrCode.png'
 let controller = new AbortController()
 const { iconRender } = useIconRender()
 // const openLongReply = import.meta.env.VITE_GLOB_OPEN_LONG_REPLY === 'true'
@@ -111,12 +120,15 @@ function createWebSocket(knowledgeId: string) {
             lastQuestion = question
             loading.value = true
           }
-
           else {
             loading.value = false
             updateChat(+uuid, messageIndex.value, {
               dateTime: new Date().toLocaleString(),
-              text: `${lastText}\n\n数据来源：\n\n>${sources_documents.map((str: string) => str.replaceAll('\n\n', '\n\n>').replace(/\n\n>$/g, '\n\n')).join('>')}`,
+              text: `${lastText}\n\n数据来源：\n\n>${sources_documents
+                .map((str: string) =>
+                  str.replaceAll('\n\n', '\n\n>').replace(/\n\n>$/g, '\n\n'),
+                )
+                .join('>')}`,
               inversion: false,
               error: false,
               loading: false,
@@ -169,8 +181,9 @@ async function handleSubmit() {
     scrollToBottom()
     const res = await bing_search({ question: prompt.value })
 
-    const result = `${res.data.response
-      }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+    const result = `${
+      res.data.response
+    }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
     addChat(+uuid, {
       dateTime: new Date().toLocaleString(),
       text: '',
@@ -262,20 +275,24 @@ async function onConversation() {
           loading.value = true
           if (socketRef.value.readyState === WebSocket.OPEN) {
             messageIndex.value = dataSources.value.length - 1
-            socketRef.value.send(JSON.stringify({
-              question: message,
-              history: history.value,
-              knowledge_base_id: knowledgeId.value,
-            }))
+            socketRef.value.send(
+              JSON.stringify({
+                question: message,
+                history: history.value,
+                knowledge_base_id: knowledgeId.value,
+              }),
+            )
           }
           else {
             await new Promise((resolve) => {
               socketRef.value?.addEventListener('open', () => {
-                socketRef.value?.send(JSON.stringify({
-                  question: message,
-                  history: history.value,
-                  knowledge_base_id: knowledgeId.value,
-                }))
+                socketRef.value?.send(
+                  JSON.stringify({
+                    question: message,
+                    history: history.value,
+                    knowledge_base_id: knowledgeId.value,
+                  }),
+                )
                 resolve(null)
               })
             })
@@ -288,8 +305,9 @@ async function onConversation() {
           history: history.value,
         })
         const result = active.value
-          ? `${res.data.response
-          }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+          ? `${
+              res.data.response
+            }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
           : res.data.response
         updateChat(+uuid, dataSources.value.length - 1, {
           dateTime: new Date().toLocaleString(),
@@ -422,18 +440,22 @@ async function onRegenerate(index: number) {
     const fetchChatAPIOnce = async () => {
       if (active.value) {
         messageIndex.value = index
-        socketRef.value?.send(JSON.stringify({
-          question: message,
-          history: history.value,
-          knowledge_base_id: knowledgeId.value,
-        }))
+        socketRef.value?.send(
+          JSON.stringify({
+            question: message,
+            history: history.value,
+            knowledge_base_id: knowledgeId.value,
+          }),
+        )
       }
       else {
         const res = await chat({
           question: message,
           history: history.value,
         })
-        const result = active.value ? res.data.response.text : res.data.response
+        const result = active.value
+          ? res.data.response.text
+          : res.data.response
         updateChat(+uuid, dataSources.value.length - 1, {
           dateTime: new Date().toLocaleString(),
           text: lastText + (result ?? ''),
@@ -702,11 +724,17 @@ function searchfun() {
 <template>
   <div class="flex flex-col w-full h-full bg-green-50">
     <HeaderComponent
-      v-if="isMobile" :using-context="usingContext" @export="handleExport"
+      v-if="isMobile"
+      :using-context="usingContext"
+      @export="handleExport"
       @toggle-using-context="toggleUsingContext"
     />
     <main class="flex-1 overflow-hidden">
-      <div id="scrollRef" ref="scrollRef" class="h-full overflow-hidden overflow-y-auto">
+      <div
+        id="scrollRef"
+        ref="scrollRef"
+        class="h-full overflow-hidden overflow-y-auto"
+      >
         <div class="p-4">
           <NAlert type="default">
             <NGrid :cols="2">
@@ -724,7 +752,10 @@ function searchfun() {
 
               <NGi>
                 <div class="flex items-center justify-end">
-                  <NImage :src="groupCode" width="150" />
+                  <NSpace vertical>
+                    <NImage :src="qrCode" width="150" />
+                    <span style="text-align: center; display: block">欢迎进群</span>
+                  </NSpace>
                 </div>
               </NGi>
             </NGrid>
@@ -732,11 +763,14 @@ function searchfun() {
         </div>
 
         <div
-          id="image-wrapper" class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
+          id="image-wrapper"
+          class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
           :class="[isMobile ? 'p-2' : 'p-4']"
         >
           <template v-if="!dataSources.length">
-            <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
+            <div
+              class="flex items-center justify-center mt-4 text-center text-neutral-300"
+            >
               <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
               <span>Aha~</span>
             </div>
@@ -744,8 +778,14 @@ function searchfun() {
           <template v-else>
             <div>
               <Message
-                v-for="(item, index) of dataSources" :key="index" :date-time="item.dateTime" :text="item.text"
-                :inversion="item.inversion" :error="item.error" :loading="item.loading" @regenerate="onRegenerate(index)"
+                v-for="(item, index) of dataSources"
+                :key="index"
+                :date-time="item.dateTime"
+                :text="item.text"
+                :inversion="item.inversion"
+                :error="item.error"
+                :loading="item.loading"
+                @regenerate="onRegenerate(index)"
                 @delete="handleDelete(index)"
               />
               <div class="sticky bottom-0 left-0 flex justify-center">
@@ -764,7 +804,11 @@ function searchfun() {
     <footer :class="footerClass">
       <div class="w-full max-w-screen-xl m-auto">
         <div class="flex items-center justify-between space-x-2">
-          <NRadioGroup v-if="!isMobile && debug" v-model:value="search" @change="searchfun">
+          <NRadioGroup
+            v-if="!isMobile && debug"
+            v-model:value="search"
+            @change="searchfun"
+          >
             <NRadioButton value="对话" label="对话" />
             <NRadioButton value="知识库" label="知识库" />
             <NRadioButton value="Bing搜索" label="Bing搜索" />
@@ -775,7 +819,10 @@ function searchfun() {
             </span>
           </HoverButton>
           <NDropdown
-            v-if="isMobile && debug" :trigger="isMobile ? 'click' : 'hover'" placement="right" :options="options"
+            v-if="isMobile && debug"
+            :trigger="isMobile ? 'click' : 'hover'"
+            placement="right"
+            :options="options"
             @select="handleSelect"
           >
             <button>
@@ -789,7 +836,8 @@ function searchfun() {
           </HoverButton>
           <HoverButton v-if="!isMobile" @click="toggleUsingContext">
             <span
-              class="text-xl" :class="{
+              class="text-xl"
+              :class="{
                 'text-[#4b9e5f]': usingContext,
                 'text-[#a8071a]': !usingContext,
               }"
@@ -797,16 +845,30 @@ function searchfun() {
               <SvgIcon icon="ri:chat-history-line" />
             </span>
           </HoverButton>
-          <NAutoComplete v-model:value="prompt" :options="searchOptions" :render-label="renderOption">
+          <NAutoComplete
+            v-model:value="prompt"
+            :options="searchOptions"
+            :render-label="renderOption"
+          >
             <template #default="{ handleInput, handleBlur, handleFocus }">
               <NInput
-                ref="inputRef" v-model:value="prompt" type="textarea" :placeholder="placeholder"
-                :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }" @input="handleInput" @focus="handleFocus"
-                @blur="handleBlur" @keypress="handleEnter"
+                ref="inputRef"
+                v-model:value="prompt"
+                type="textarea"
+                :placeholder="placeholder"
+                :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }"
+                @input="handleInput"
+                @focus="handleFocus"
+                @blur="handleBlur"
+                @keypress="handleEnter"
               />
             </template>
           </NAutoComplete>
-          <NButton type="primary" :disabled="buttonDisabled" @click="handleSubmit">
+          <NButton
+            type="primary"
+            :disabled="buttonDisabled"
+            @click="handleSubmit"
+          >
             <template #icon>
               <span class="dark:text-black">
                 <SvgIcon icon="ri:send-plane-fill" />

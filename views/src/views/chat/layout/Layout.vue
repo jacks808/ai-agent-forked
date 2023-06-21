@@ -16,10 +16,10 @@ const authStore = useAuthStore()
 router.replace({
   name: 'Chat',
   params: { uuid: chatStore.active },
-  query: { debug: route.query?.debug },
+  query: route.query,
 })
 
-const { isMobile, debug } = useBasicLayout()
+const { isMobile } = useBasicLayout()
 
 const collapsed = computed(() => appStore.siderCollapsed)
 
@@ -34,18 +34,18 @@ const getMobileClass = computed(() => {
 })
 
 const getContainerClass = computed(() => {
-  return [
-    'h-full',
-    { 'pl-[280px]': !isMobile.value && !collapsed.value && debug },
-  ]
+  return ['h-full', { 'pl-[280px]': !isMobile.value && !collapsed.value }]
 })
 </script>
 
 <template>
-  <div class="h-full dark:bg-[#24272e] transition-all" :class="[isMobile ? 'p-0' : 'p-4']">
+  <div
+    class="h-full dark:bg-[#24272e] transition-all"
+    :class="[isMobile ? 'p-0' : 'p-4']"
+  >
     <div class="h-full overflow-hidden" :class="getMobileClass">
       <NLayout class="z-40 transition" :class="getContainerClass" has-sider>
-        <Sider v-if="debug" />
+        <Sider />
         <NLayoutContent class="h-full">
           <RouterView v-slot="{ Component, route: slotRoute }">
             <component :is="Component" :key="slotRoute.fullPath" />

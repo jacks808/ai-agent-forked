@@ -11,9 +11,9 @@ import { useBasicLayout } from '@/hooks/useBasicLayout'
 const appStore = useAppStore()
 const chatStore = useChatStore()
 
-const { isMobile } = useBasicLayout()
+const { isMobile, debug } = useBasicLayout()
 
-const menu = ref(1)
+const menu = ref(3)
 
 const collapsed = computed(() => appStore.siderCollapsed)
 
@@ -91,12 +91,13 @@ watch(
     position="absolute"
     bordered
     :style="getMobileClass"
+
     @update-collapsed="handleUpdateCollapsed"
   >
     <Footer />
     <div class="flex flex-col" :style="mobileSafeArea">
       <main class="flex flex-col flex-1 min-h-0">
-        <div class="flex justify-between">
+        <div v-if="debug" class="flex justify-between">
           <NRadioGroup v-model:value="menu" name="radiobuttongroup1">
             <NRadioButton
               v-for="song in songs"
