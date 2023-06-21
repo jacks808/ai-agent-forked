@@ -88,6 +88,7 @@ const socketRef = shallowRef<WebSocket>()
 onBeforeUnmount(() => {
   socketRef.value?.close()
 })
+const messageIndex = ref<number>(dataSources.value.length - 1)
 
 function createWebSocket(knowledgeId: string) {
   if (knowledgeId) {
@@ -113,7 +114,7 @@ function createWebSocket(knowledgeId: string) {
 
           else {
             loading.value = false
-            updateChat(+uuid, dataSources.value.length - 1, {
+            updateChat(+uuid, messageIndex.value, {
               dateTime: new Date().toLocaleString(),
               text: `${lastText}\n\n数据来源：\n\n>${sources_documents.map((str: string) => str.replaceAll('\n\n', '\n\n>').replace(/\n\n>$/g, '\n\n')).join('>')}`,
               inversion: false,
@@ -124,13 +125,13 @@ function createWebSocket(knowledgeId: string) {
             })
             scrollToBottom()
             scrollToBottomIfAtBottom()
-            updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+            updateChatSome(+uuid, messageIndex.value, { loading: false })
           }
         }
         else {
           scrollToBottom()
           lastText += data
-          updateChat(+uuid, dataSources.value.length - 1, {
+          updateChat(+uuid, messageIndex.value, {
             dateTime: new Date().toLocaleString(),
             text: lastText,
             inversion: false,
@@ -260,6 +261,7 @@ async function onConversation() {
         if (socketRef.value) {
           loading.value = true
           if (socketRef.value.readyState === WebSocket.OPEN) {
+            messageIndex.value = dataSources.value.length - 1
             socketRef.value.send(JSON.stringify({
               question: message,
               history: history.value,
@@ -419,6 +421,7 @@ async function onRegenerate(index: number) {
     const lastText = ''
     const fetchChatAPIOnce = async () => {
       if (active.value) {
+        messageIndex.value = index
         socketRef.value?.send(JSON.stringify({
           question: message,
           history: history.value,
