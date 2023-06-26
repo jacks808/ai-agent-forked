@@ -72,7 +72,9 @@ const conversationList = computed(() =>
   ),
 )
 
-const prompt = ref<string>('')
+const isFirstLoad = ref<boolean>(!localStorage.getItem('used'))
+
+const prompt = ref<string>(isFirstLoad.value ? '介绍下腾讯文旅' : '')
 const loading = ref<boolean>(false)
 const inputRef = ref<Ref | null>(null)
 const search = ref<string>('知识库')
@@ -106,7 +108,7 @@ function createWebSocket(knowledgeId: string) {
     }
     else {
       const socket = new WebSocket(
-        `ws://ai.paas.tourismshow.cn/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
+        `${window.baseApi.replace('http', 'ws')}/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
       )
 
       let lastText = ''
@@ -164,6 +166,7 @@ function createWebSocket(knowledgeId: string) {
 watch(knowledgeId, createWebSocket)
 
 async function handleSubmit() {
+  localStorage.setItem('used', 'true')
   if (search.value === 'Bing搜索') {
     loading.value = true
     const options: Chat.ConversationRequest = {}
@@ -740,13 +743,13 @@ function searchfun() {
             <NGrid :cols="2">
               <NGi>
                 <NSpace vertical>
-                  <span>
-                    您好，我是腾讯文旅AI工作助手，可以基于知识库回答您的问题。
-                  </span>
-                  <span>您可以像这样问我：</span>
-                  <span>1. 北京工体项目都有哪些模块</span>
-                  <span>2. 三星堆项目腾讯都建设了什么内容</span>
-                  <span>有任何问题或建议欢迎联系rocketwang</span>
+                  <div>
+                    您好，我是腾讯文旅AI工作助手，可以基于知识库回答您的问题。拖拽文档至左侧可以上传到知识库。
+                  </div>
+                  <div>您可以像这样问我：</div>
+                  <div>1. 介绍下腾讯文旅</div>
+                  <div>2. 三星堆项目腾讯都建设了什么内容？</div>
+                  <div>有任何问题或建议欢迎联系rocketwang</div>
                 </NSpace>
               </NGi>
 
