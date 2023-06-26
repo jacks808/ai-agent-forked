@@ -106,7 +106,7 @@ function createWebSocket(knowledgeId: string) {
     }
     else {
       const socket = new WebSocket(
-        `wss://ai.paas.tourismshow.cn/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
+        `ws://ai.paas.tourismshow.cn/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
       )
 
       let lastText = ''
