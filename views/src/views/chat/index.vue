@@ -108,7 +108,7 @@ function createWebSocket(knowledgeId: string) {
     }
     else {
       const socket = new WebSocket(
-        `${window.baseApi.replace('http', 'ws')}/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
+        `${new URL(window.baseApi).origin.replace('http', 'ws')}/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
       )
 
       let lastText = ''
