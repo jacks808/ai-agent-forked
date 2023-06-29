@@ -68,6 +68,7 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
     }"
     @finish="() => {
       try {
+        _hmt.push(['_trackEvent', '知识库', 'upload_doc']);
         gtag('event', 'upload_doc', {})
       }
       catch (error) {
