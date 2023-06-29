@@ -19,6 +19,23 @@ onMounted(async () => {
   dataSources.value = res.data.data
 })
 
+/**
+ * 当前支持的文件类型
+ */
+const mimeTypes = [
+  'image/*',
+  'text/*',
+  'audio/*',
+  'video/*',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/pdf',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]
+
 /* function handleEdit({ uuid }: Chat.History, isEdit: boolean, event?: MouseEvent) {
   event?.stopPropagation()
   chatStore.updateHistory(uuid, { isEdit })
@@ -45,6 +62,7 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
     :headers="{
       'naive-info': 'hello!',
     }"
+    :accept="mimeTypes.join(',')"
     :data="{
       knowledge_base_id: knowledge.knowledgebaseid as string,
     }"

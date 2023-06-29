@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import {
-  computed,
-  onBeforeMount,
-  onBeforeUnmount,
-  onMounted,
-  onUnmounted,
-  ref,
-  shallowRef,
-  watch,
-} from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
@@ -41,6 +32,7 @@ import { t } from '@/locales'
 import { bing_search, chat } from '@/api/chat'
 import { useIdStore } from '@/store/modules/knowledgebaseid/id'
 import qrCode from '@/assets/qrCode.png'
+
 let controller = new AbortController()
 const { iconRender } = useIconRender()
 // const openLongReply = import.meta.env.VITE_GLOB_OPEN_LONG_REPLY === 'true'
@@ -74,6 +66,19 @@ const conversationList = computed(() =>
 
 const isFirstLoad = ref<boolean>(!localStorage.getItem('used'))
 
+function formatSourceDocuments(sources_documents: any[] = []) {
+  if (sources_documents.length) {
+    return `\n\n数据来源：\n\n>${sources_documents
+      .map((str: string) =>
+        str.replaceAll('\n\n', '\n\n>').replace(/\n\n>$/g, '\n\n'),
+      )
+      .join('>')}`
+  }
+  else {
+    return ''
+  }
+}
+
 const prompt = ref<string>(isFirstLoad.value ? '介绍下腾讯文旅' : '')
 const loading = ref<boolean>(false)
 const inputRef = ref<Ref | null>(null)
@@ -103,63 +108,57 @@ const messageIndex = ref<number>(dataSources.value.length - 1)
 
 function createWebSocket(knowledgeId: string) {
   if (knowledgeId) {
-    if (socketRef.value && socketRef.value.readyState === WebSocket.OPEN) {
+    if (socketRef.value && socketRef.value.readyState === WebSocket.OPEN)
       socketRef.value.close()
-    }
-    else {
-      const socket = new WebSocket(
-        `${new URL(window.baseApi).origin.replace('http', 'ws')}/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
-      )
 
-      let lastText = ''
-      let lastQuestion = ''
+    const socket = new WebSocket(
+      `${new URL(window.baseApi).origin.replace('http', 'ws')}/aisocket/local_doc_qa/stream-chat/${knowledgeId}`,
+    )
 
-      socket.addEventListener('message', ({ data }) => {
-        if (data.startsWith('{')) {
-          const { flag, question, sources_documents } = JSON.parse(data)
-          if (flag === 'start') {
-            lastText = ''
-            lastQuestion = question
-            loading.value = true
-          }
-          else {
-            loading.value = false
-            updateChat(+uuid, messageIndex.value, {
-              dateTime: new Date().toLocaleString(),
-              text: `${lastText}\n\n数据来源：\n\n>${sources_documents
-                .map((str: string) =>
-                  str.replaceAll('\n\n', '\n\n>').replace(/\n\n>$/g, '\n\n'),
-                )
-                .join('>')}`,
-              inversion: false,
-              error: false,
-              loading: false,
-              conversationOptions: null,
-              requestOptions: { prompt: lastQuestion, options: {} },
-            })
-            scrollToBottom()
-            scrollToBottomIfAtBottom()
-            updateChatSome(+uuid, messageIndex.value, { loading: false })
-          }
+    let lastText = ''
+    let lastQuestion = ''
+
+    socket.addEventListener('message', ({ data }) => {
+      if (data.startsWith('{')) {
+        const { flag, question, sources_documents } = JSON.parse(data)
+        if (flag === 'start') {
+          lastText = ''
+          lastQuestion = question
+          loading.value = true
         }
         else {
-          scrollToBottom()
-          lastText += data
+          loading.value = false
           updateChat(+uuid, messageIndex.value, {
             dateTime: new Date().toLocaleString(),
-            text: lastText,
+            text: `${lastText}${formatSourceDocuments(sources_documents)}`,
             inversion: false,
             error: false,
             loading: false,
             conversationOptions: null,
             requestOptions: { prompt: lastQuestion, options: {} },
           })
+          scrollToBottom()
           scrollToBottomIfAtBottom()
+          updateChatSome(+uuid, messageIndex.value, { loading: false })
         }
-      })
+      }
+      else {
+        scrollToBottom()
+        lastText += data
+        updateChat(+uuid, messageIndex.value, {
+          dateTime: new Date().toLocaleString(),
+          text: lastText,
+          inversion: false,
+          error: false,
+          loading: false,
+          conversationOptions: null,
+          requestOptions: { prompt: lastQuestion, options: {} },
+        })
+        scrollToBottomIfAtBottom()
+      }
+    })
 
-      socketRef.value = socket
-    }
+    socketRef.value = socket
   }
 }
 
@@ -186,7 +185,7 @@ async function handleSubmit() {
 
     const result = `${
       res.data.response
-    }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+    }${formatSourceDocuments(res.data.source_documents)}`
     addChat(+uuid, {
       dateTime: new Date().toLocaleString(),
       text: '',
@@ -309,8 +308,8 @@ async function onConversation() {
         })
         const result = active.value
           ? `${
-              res.data.response
-            }\n\n数据来源：\n\n>${res.data.source_documents.join('>')}`
+            res.data.response
+          }${formatSourceDocuments(res.data.source_documents)}`
           : res.data.response
         updateChat(+uuid, dataSources.value.length - 1, {
           dateTime: new Date().toLocaleString(),
@@ -411,6 +410,7 @@ async function onConversation() {
     loading.value = false
   }
 }
+
 async function onRegenerate(index: number) {
   if (loading.value)
     return
@@ -686,6 +686,7 @@ const options = computed(() => {
 
   return common
 })
+
 function handleSelect(key: 'Bing搜索' | '清除会话' | '知识库') {
   if (key === '清除会话') {
     handleClear()
@@ -707,6 +708,7 @@ function handleSelect(key: 'Bing搜索' | '清除会话' | '知识库') {
   //     emit('delete')
   // }
 }
+
 onMounted(() => {
   scrollToBottom()
   if (inputRef.value && !isMobile.value)
@@ -717,6 +719,7 @@ onUnmounted(() => {
   if (loading.value)
     controller.abort()
 })
+
 function searchfun() {
   if (search.value === '知识库')
     active.value = true
