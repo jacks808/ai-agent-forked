@@ -411,6 +411,9 @@ async def stream_chat(websocket: WebSocket, knowledge_base_id: str):
         ):
             await websocket.send_text(resp["result"][last_print_len:])
             last_print_len = len(resp["result"])
+            # yield control to the event loop
+            # see
+            # https://websockets.readthedocs.io/en/stable/faq/asyncio.html#why-does-my-program-never-receive-any-messages
             await asyncio.sleep(0)
 
         source_documents = [
