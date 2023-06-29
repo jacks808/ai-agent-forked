@@ -178,4 +178,4 @@ BING_SUBSCRIPTION_KEY = ""
 CONTEXT_PATH = "/ai"
 
 # WebSocket 前缀
-WS_PREFIX = "/ai/socket"
+WS_PREFIX = "/aisocket"
