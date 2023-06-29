@@ -109,11 +109,11 @@ LORA_DIR = "loras/"
 LLM_LORA_PATH = ""
 USE_LORA = True if LLM_LORA_PATH else False
 
-# LLM streaming reponse
+# LLM streaming response
 STREAMING = True
 
 # Use p-tuning-v2 PrefixEncoder
-USE_PTUNING_V2 = False
+USE_P_TUNING_V2 = False
 
 # LLM running device
 LLM_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"

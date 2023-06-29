@@ -230,17 +230,26 @@ class LocalDocQA:
         torch_gc()
         if len(related_docs_with_score) > 0:
             prompt = generate_prompt(related_docs_with_score, query)
-        else:
-            prompt = query
 
-        for answer_result in self.llm.generatorAnswer(prompt=prompt, history=chat_history,
-                                                      streaming=streaming):
-            resp = answer_result.llm_output["answer"]
-            history = answer_result.history
-            history[-1][0] = query
-            response = {"query": query,
-                        "result": resp,
-                        "source_documents": related_docs_with_score}
+            for answer_result in self.llm.generatorAnswer(prompt=prompt, history=chat_history,
+                                                          streaming=streaming):
+                resp = answer_result.llm_output["answer"]
+                history = answer_result.history
+                history[-1][0] = query
+                response = {
+                    "query": query,
+                    "result": resp,
+                    "source_documents": related_docs_with_score
+                }
+                yield response, history
+
+        else:
+            response = {
+                "query": query,
+                "result": "根据已知信息无法回答该问题",
+                "source_documents": []
+            }
+            history = chat_history
             yield response, history
 
     # query      查询内容

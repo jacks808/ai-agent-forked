@@ -532,7 +532,7 @@ with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as 
                                     step=1,
                                     label="LLM 对话轮数",
                                     interactive=True)
-        use_ptuning_v2 = gr.Checkbox(USE_PTUNING_V2,
+        use_ptuning_v2 = gr.Checkbox(USE_P_TUNING_V2,
                                      label="使用p-tuning-v2微调过的模型",
                                      interactive=True)
         use_lora = gr.Checkbox(USE_LORA,
