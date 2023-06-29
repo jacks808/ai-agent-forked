@@ -1,9 +1,9 @@
-import argparse
+import asyncio
 import json
 import os
 import shutil
 from typing import List, Optional
-import urllib
+from urllib import parse
 
 import nltk
 import pydantic
@@ -11,17 +11,17 @@ import uvicorn
 from fastapi import Body, FastAPI, File, Form, Query, UploadFile, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing_extensions import Annotated
 from starlette.responses import RedirectResponse
+from typing_extensions import Annotated
 
+import models.shared as shared
 from chains.local_doc_qa import LocalDocQA
 from configs.model_config import (KB_ROOT_PATH, EMBEDDING_DEVICE,
                                   EMBEDDING_MODEL, NLTK_DATA_PATH,
                                   VECTOR_SEARCH_TOP_K, LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN,
-                                  CONTEXT_PATH, WS_PREFIX)
-import models.shared as shared
-from models.loader.args import parser
+                                  CONTEXT_PATH, WS_PREFIX, logger)
 from models.loader import LoaderCheckPoint
+from models.loader.args import parser
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 
@@ -204,7 +204,7 @@ async def delete_kb(
                                        example="kb1"),
 ):
     # TODO: 确认是否支持批量删除知识库
-    knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
+    knowledge_base_id = parse.unquote(knowledge_base_id)
     if not os.path.exists(get_kb_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
     shutil.rmtree(get_kb_path(knowledge_base_id))
@@ -219,7 +219,7 @@ async def delete_doc(
             None, description="doc name", example="doc_name_1.pdf"
         ),
 ):
-    knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
+    knowledge_base_id = parse.unquote(knowledge_base_id)
     if not os.path.exists(get_content_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
     doc_path = get_file_path(knowledge_base_id, doc_name)
@@ -250,7 +250,7 @@ async def update_doc(
         ),
         new_doc: UploadFile = File(description="待上传文件"),
 ):
-    knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
+    knowledge_base_id = parse.unquote(knowledge_base_id)
     if not os.path.exists(get_content_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
     doc_path = get_file_path(knowledge_base_id, old_doc)
@@ -393,6 +393,7 @@ async def stream_chat(websocket: WebSocket, knowledge_base_id: str):
     turn = 1
     while True:
         input_json = await websocket.receive_json()
+        logger.info("received json")
         question, history, knowledge_base_id = input_json["question"], input_json["history"], input_json[
             "knowledge_base_id"]
         vs_path = get_vs_path(knowledge_base_id)
@@ -410,6 +411,7 @@ async def stream_chat(websocket: WebSocket, knowledge_base_id: str):
         ):
             await websocket.send_text(resp["result"][last_print_len:])
             last_print_len = len(resp["result"])
+            await asyncio.sleep(0)
 
         source_documents = [
             f"""出处 [{inum + 1}] {os.path.split(doc.metadata['source'])[-1]}：\n\n{doc.page_content}\n\n"""
