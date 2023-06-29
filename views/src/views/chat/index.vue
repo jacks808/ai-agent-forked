@@ -165,6 +165,12 @@ function createWebSocket(knowledgeId: string) {
 watch(knowledgeId, createWebSocket)
 
 async function handleSubmit() {
+  try {
+    gtag('event', 'send_message', {})
+  }
+  catch (error) {
+
+  }
   localStorage.setItem('used', 'true')
   if (search.value === 'Bing搜索') {
     loading.value = true

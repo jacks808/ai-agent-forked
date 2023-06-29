@@ -66,6 +66,14 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
     :data="{
       knowledge_base_id: knowledge.knowledgebaseid as string,
     }"
+    @finish="() => {
+      try {
+        gtag('event', 'upload_doc', {})
+      }
+      catch (error) {
+
+      }
+    }"
   >
     <NUploadDragger>
       <NText style="font-size: 16px">
