@@ -1,19 +1,17 @@
-import streamlit as st
-# from st_btn_select import st_btn_select
-import tempfile
 ###### 从webui借用的代码 #####
 ######   做了少量修改    #####
-import os
 import shutil
+# from st_btn_select import st_btn_select
+import tempfile
 
+import nltk
+import streamlit as st
+
+import models.shared as shared
 from chains.local_doc_qa import LocalDocQA
 from configs.model_config import *
-import nltk
-from models.base import (BaseAnswer,
-                         AnswerResult,)
-import models.shared as shared
-from models.loader.args import parser
 from models.loader import LoaderCheckPoint
+from models.loader.args import parser
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 
@@ -31,22 +29,25 @@ def get_vs_list():
 
 embedding_model_dict_list = list(embedding_model_dict.keys())
 llm_model_dict_list = list(llm_model_dict.keys())
+
+
 # flag_csv_logger = gr.CSVLogger()
 
 
 def get_answer(query, vs_path, history, mode, score_threshold=VECTOR_SEARCH_SCORE_THRESHOLD,
-               vector_search_top_k=VECTOR_SEARCH_TOP_K, chunk_conent: bool = True,
-               chunk_size=CHUNK_SIZE, streaming: bool = STREAMING,):
+               vector_search_top_k=VECTOR_SEARCH_TOP_K, chunk_content: bool = True,
+               chunk_size=CHUNK_SIZE, streaming: bool = STREAMING, ):
     if mode == "Bing搜索问答":
         for resp, history in local_doc_qa.get_search_result_based_answer(
                 query=query, chat_history=history, streaming=streaming):
             source = "\n\n"
             source += "".join(
-                [f"""<details> <summary>出处 [{i + 1}] <a href="{doc.metadata["source"]}" target="_blank">{doc.metadata["source"]}</a> </summary>\n"""
-                 f"""{doc.page_content}\n"""
-                 f"""</details>"""
-                 for i, doc in
-                 enumerate(resp["source_documents"])])
+                [
+                    f"""<details> <summary>出处 [{i + 1}] <a href="{doc.metadata["source"]}" target="_blank">{doc.metadata["source"]}</a> </summary>\n"""
+                    f"""{doc.page_content}\n"""
+                    f"""</details>"""
+                    for i, doc in
+                    enumerate(resp["source_documents"])])
             history[-1][-1] += source
             yield history, ""
     elif mode == "知识库问答" and vs_path is not None and os.path.exists(vs_path):
@@ -63,11 +64,11 @@ def get_answer(query, vs_path, history, mode, score_threshold=VECTOR_SEARCH_SCOR
             yield history, ""
     elif mode == "知识库测试":
         if os.path.exists(vs_path):
-            resp, prompt = local_doc_qa.get_knowledge_based_conent_test(query=query, vs_path=vs_path,
-                                                                        score_threshold=score_threshold,
-                                                                        vector_search_top_k=vector_search_top_k,
-                                                                        chunk_conent=chunk_conent,
-                                                                        chunk_size=chunk_size)
+            resp, prompt = local_doc_qa.get_knowledge_based_content_test(query=query, vs_path=vs_path,
+                                                                         score_threshold=score_threshold,
+                                                                         vector_search_top_k=vector_search_top_k,
+                                                                         chunk_content=chunk_content,
+                                                                         chunk_size=chunk_size)
             if not resp["source_documents"]:
                 yield history + [[query,
                                   "根据您的设定，没有匹配到任何内容，请确认您设置的知识相关度 Score 阈值是否过小或其他参数是否正确。"]], ""
@@ -87,7 +88,6 @@ def get_answer(query, vs_path, history, mode, score_threshold=VECTOR_SEARCH_SCOR
     else:
         for answer_result in local_doc_qa.llm.generatorAnswer(prompt=query, history=history,
                                                               streaming=streaming):
-
             resp = answer_result.llm_output["answer"]
             history = answer_result.history
             history[-1][-1] = resp + (
@@ -143,7 +143,7 @@ def init_model(llm_model: str = 'chat-glm-6b', embedding_model: str = 'text2vec'
 #     return history + [[None, model_status]]
 
 
-def get_vector_store(vs_id, files, sentence_size, history, one_conent, one_content_segmentation):
+def get_vector_store(vs_id, files, sentence_size, history, one_content, one_content_segmentation):
     vs_path = os.path.join(KB_ROOT_PATH, vs_id, "vector_store")
     filelist = []
     if not os.path.exists(os.path.join(KB_ROOT_PATH, vs_id, "content")):
@@ -159,7 +159,8 @@ def get_vector_store(vs_id, files, sentence_size, history, one_conent, one_conte
             vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store(
                 filelist, vs_path, sentence_size)
         else:
-            vs_path, loaded_files = local_doc_qa.one_knowledge_add(vs_path, files, one_conent, one_content_segmentation,
+            vs_path, loaded_files = local_doc_qa.one_knowledge_add(vs_path, files, one_content,
+                                                                   one_content_segmentation,
                                                                    sentence_size)
         if len(loaded_files):
             file_status = f"已添加 {'、'.join([os.path.split(i)[-1] for i in loaded_files if i])} 内容至知识库，并已加载知识库，请开始提问"
@@ -182,11 +183,12 @@ knowledge_base_test_mode_info = ("【注意】\n\n"
                                  "本界面中修改的参数并不会直接修改对话界面中参数，仍需前往`configs/model_config.py`修改后生效。"
                                  "相关参数将在后续版本中支持本界面直接修改。")
 
-
 webui_title = """
 # 🎉langchain-ChatGLM WebUI🎉
 👍 [https://github.com/imClumsyPanda/langchain-ChatGLM](https://github.com/imClumsyPanda/langchain-ChatGLM)
 """
+
+
 ######                   #####
 
 
@@ -207,6 +209,8 @@ class ST_CONFIG:
     robot_icon = 'https://ts1.cn.mm.bing.net/th/id/R-C.5302e2cc6f5c7c4933ebb3394e0c41bc?rik=z4u%2b7efba5Mgxw&riu=http%3a%2f%2fcomic-cons.xyz%2fwp-content%2fuploads%2fStar-Wars-avatar-icon-C3PO.png&ehk=kBBvCvpJMHPVpdfpw1GaH%2brbOaIoHjY5Ua9PKcIs%2bAc%3d&risl=&pid=ImgRaw&r=0'
     default_mode = '知识库问答'
     defalut_kb = ''
+
+
 ######        #####
 
 
@@ -320,10 +324,10 @@ def message(msg,
 
 
 def output_messages(
-    user_bg_color='',
-    robot_bg_color='',
-    user_icon='',
-    robot_icon='',
+        user_bg_color='',
+        robot_bg_color='',
+        user_icon='',
+        robot_icon='',
 ):
     with chat_box.container():
         last_response = None
@@ -354,22 +358,22 @@ def load_model(llm_model: str, embedding_model: str):
 
 # @st.cache_data
 def answer(query, vs_path='', history=[], mode='', score_threshold=0,
-           vector_search_top_k=5, chunk_conent=True, chunk_size=100, qa=None
+           vector_search_top_k=5, chunk_content=True, chunk_size=100, qa=None
            ):
     '''
     对应get_answer，--利用streamlit cache缓存相同问题的答案--
     '''
     return get_answer(query, vs_path, history, mode, score_threshold,
-                      vector_search_top_k, chunk_conent, chunk_size)
+                      vector_search_top_k, chunk_content, chunk_size)
 
 
 def load_vector_store(
-    vs_id,
-    files,
-    sentence_size=100,
-    history=[],
-    one_conent=None,
-    one_content_segmentation=None,
+        vs_id,
+        files,
+        sentence_size=100,
+        history=[],
+        one_content=None,
+        one_content_segmentation=None,
 ):
     return get_vector_store(
         local_doc_qa,
@@ -377,7 +381,7 @@ def load_vector_store(
         files,
         sentence_size,
         history,
-        one_conent,
+        one_content,
         one_content_segmentation,
     )
 
@@ -405,6 +409,7 @@ with st.sidebar:
         robot_say(f'已切换到"{m}"模式')
         if m == '知识库测试':
             robot_say(knowledge_base_test_mode_info)
+
 
     index = 0
     try:
@@ -441,6 +446,7 @@ with st.sidebar:
         vs_list = get_vs_list()
         vs_list.remove('新建知识库')
 
+
         def on_new_kb():
             name = st.session_state.kb_name
             if name in vs_list:
@@ -449,8 +455,11 @@ with st.sidebar:
                 vs_list.append(name)
                 st.session_state.vs_path = name
 
+
         def on_vs_change():
             robot_say(f'已加载知识库： {st.session_state.vs_path}')
+
+
         with st.expander('知识库配置', True):
             cols = st.columns([12, 10])
             kb_name = cols[0].text_input(
@@ -467,9 +476,9 @@ with st.sidebar:
             history_len = st.slider(
                 'LLM对话轮数', 1, 50, LLM_HISTORY_LEN)  # 也许要跟知识库分开设置
             local_doc_qa.llm.set_history_len(history_len)
-            chunk_conent = st.checkbox('启用上下文关联', False)
+            chunk_content = st.checkbox('启用上下文关联', False)
             st.text('')
-            # chunk_conent = st.checkbox('分割文本', True) # 知识库文本分割入库
+            # chunk_content = st.checkbox('分割文本', True) # 知识库文本分割入库
             chunk_size = st.slider('上下文关联长度', 1, 1000, CHUNK_SIZE)
             sentence_size = st.slider('文本入库分句长度限制', 1, 1000, SENTENCE_SIZE)
             files = st.file_uploader('上传知识文件',
@@ -487,7 +496,6 @@ with st.sidebar:
                     vs_path, file_list, sentence_size, [], None, None)
                 st.session_state.files = []
 
-
 # main body
 chat_box = st.empty()
 
@@ -495,6 +503,7 @@ with st.form('my_form', clear_on_submit=True):
     cols = st.columns([8, 1])
     question = cols[0].text_input(
         'temp', key='input_question', label_visibility='collapsed')
+
 
     def on_send():
         q = st.session_state.input_question
@@ -521,7 +530,7 @@ with st.form('my_form', clear_on_submit=True):
                                          mode=mode,
                                          score_threshold=score_threshold,
                                          vector_search_top_k=top_k,
-                                         chunk_conent=chunk_conent,
+                                         chunk_content=chunk_content,
                                          chunk_size=chunk_size):
                     last_response.markdown(
                         format_md(history[-1][-1], False, 'ligreen'),
@@ -531,6 +540,8 @@ with st.form('my_form', clear_on_submit=True):
                 robot_say('正在思考...')
                 last_response = output_messages()
             st.session_state['history'][-1]['content'] = history[-1][-1]
+
+
     submit = cols[1].form_submit_button('发送', on_click=on_send)
 
 output_messages()

@@ -1,13 +1,13 @@
-import gradio as gr
 import shutil
 
+import gradio as gr
+import nltk
+
+import models.shared as shared
 from chains.local_doc_qa import LocalDocQA
 from configs.model_config import *
-import nltk
-import models.shared as shared
-from models.loader.args import parser
 from models.loader import LoaderCheckPoint
-import os
+from models.loader.args import parser
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 
@@ -33,7 +33,7 @@ flag_csv_logger = gr.CSVLogger()
 
 
 def get_answer(query, vs_path, history, mode, score_threshold=VECTOR_SEARCH_SCORE_THRESHOLD,
-               vector_search_top_k=VECTOR_SEARCH_TOP_K, chunk_conent: bool = True,
+               vector_search_top_k=VECTOR_SEARCH_TOP_K, chunk_content: bool = True,
                chunk_size=CHUNK_SIZE, streaming: bool = STREAMING):
     if mode == "Bing搜索问答":
         for resp, history in local_doc_qa.get_search_result_based_answer(
@@ -63,11 +63,11 @@ def get_answer(query, vs_path, history, mode, score_threshold=VECTOR_SEARCH_SCOR
             yield history, ""
     elif mode == "知识库测试":
         if os.path.exists(vs_path):
-            resp, prompt = local_doc_qa.get_knowledge_based_conent_test(query=query, vs_path=vs_path,
-                                                                        score_threshold=score_threshold,
-                                                                        vector_search_top_k=vector_search_top_k,
-                                                                        chunk_conent=chunk_conent,
-                                                                        chunk_size=chunk_size)
+            resp, prompt = local_doc_qa.get_knowledge_based_content_test(query=query, vs_path=vs_path,
+                                                                         score_threshold=score_threshold,
+                                                                         vector_search_top_k=vector_search_top_k,
+                                                                         chunk_content=chunk_content,
+                                                                         chunk_size=chunk_size)
             if not resp["source_documents"]:
                 yield history + [[query,
                                   "根据您的设定，没有匹配到任何内容，请确认您设置的知识相关度 Score 阈值是否过小或其他参数是否正确。"]], ""
@@ -138,7 +138,7 @@ def reinit_model(llm_model, embedding_model, llm_history_len, no_remote_model, u
     return history + [[None, model_status]]
 
 
-def get_vector_store(vs_id, files, sentence_size, history, one_conent, one_content_segmentation):
+def get_vector_store(vs_id, files, sentence_size, history, one_content, one_content_segmentation):
     vs_path = os.path.join(KB_ROOT_PATH, vs_id, "vector_store")
     filelist = []
     if local_doc_qa.llm and local_doc_qa.embeddings:
@@ -149,7 +149,8 @@ def get_vector_store(vs_id, files, sentence_size, history, one_conent, one_conte
                 filelist.append(os.path.join(KB_ROOT_PATH, vs_id, "content", filename))
             vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store(filelist, vs_path, sentence_size)
         else:
-            vs_path, loaded_files = local_doc_qa.one_knowledge_add(vs_path, files, one_conent, one_content_segmentation,
+            vs_path, loaded_files = local_doc_qa.one_knowledge_add(vs_path, files, one_content,
+                                                                   one_content_segmentation,
                                                                    sentence_size)
         if len(loaded_files):
             file_status = f"已添加 {'、'.join([os.path.split(i)[-1] for i in loaded_files if i])} 内容至知识库，并已加载知识库，请开始提问"
@@ -160,26 +161,26 @@ def get_vector_store(vs_id, files, sentence_size, history, one_conent, one_conte
         vs_path = None
     logger.info(file_status)
     return vs_path, None, history + [[None, file_status]], \
-           gr.update(choices=local_doc_qa.list_file_from_vector_store(vs_path) if vs_path else [])
+        gr.update(choices=local_doc_qa.list_file_from_vector_store(vs_path) if vs_path else [])
 
 
 def change_vs_name_input(vs_id, history):
     if vs_id == "新建知识库":
-        return gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), None, history,\
-                gr.update(choices=[]), gr.update(visible=False)
+        return gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), None, history, \
+            gr.update(choices=[]), gr.update(visible=False)
     else:
         vs_path = os.path.join(KB_ROOT_PATH, vs_id, "vector_store")
         if "index.faiss" in os.listdir(vs_path):
             file_status = f"已加载知识库{vs_id}，请开始提问"
             return gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), \
-                   vs_path, history + [[None, file_status]], \
-                   gr.update(choices=local_doc_qa.list_file_from_vector_store(vs_path), value=[]), \
-                   gr.update(visible=True)
+                vs_path, history + [[None, file_status]], \
+                gr.update(choices=local_doc_qa.list_file_from_vector_store(vs_path), value=[]), \
+                gr.update(visible=True)
         else:
             file_status = f"已选择知识库{vs_id}，当前知识库中未上传文件，请先上传文件后，再开始提问"
             return gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), \
-                   vs_path, history + [[None, file_status]], \
-                   gr.update(choices=[], value=[]), gr.update(visible=True, value=[])
+                vs_path, history + [[None, file_status]], \
+                gr.update(choices=[], value=[]), gr.update(visible=True, value=[])
 
 
 knowledge_base_test_mode_info = ("【注意】\n\n"
@@ -204,17 +205,17 @@ def change_mode(mode, history):
         return gr.update(visible=False), gr.update(visible=False), history
 
 
-def change_chunk_conent(mode, label_conent, history):
-    conent = ""
-    if "chunk_conent" in label_conent:
-        conent = "搜索结果上下文关联"
-    elif "one_content_segmentation" in label_conent:  # 这里没用上，可以先留着
-        conent = "内容分段入库"
+def change_chunk_content(mode, label_content, history):
+    content = ""
+    if "chunk_content" in label_content:
+        content = "搜索结果上下文关联"
+    elif "one_content_segmentation" in label_content:  # 这里没用上，可以先留着
+        content = "内容分段入库"
 
     if mode:
-        return gr.update(visible=True), history + [[None, f"【已开启{conent}】"]]
+        return gr.update(visible=True), history + [[None, f"【已开启{content}】"]]
     else:
-        return gr.update(visible=False), history + [[None, f"【已关闭{conent}】"]]
+        return gr.update(visible=False), history + [[None, f"【已关闭{content}】"]]
 
 
 def add_vs_name(vs_name, chatbot):
@@ -257,6 +258,7 @@ def reinit_vector_store(vs_id, history):
 def refresh_vs_list():
     return gr.update(choices=get_vs_list()), gr.update(choices=get_vs_list())
 
+
 def delete_file(vs_id, files_to_delete, chatbot):
     vs_path = os.path.join(KB_ROOT_PATH, vs_id, "vector_store")
     content_path = os.path.join(KB_ROOT_PATH, vs_id, "content")
@@ -270,11 +272,11 @@ def delete_file(vs_id, files_to_delete, chatbot):
     rested_files = local_doc_qa.list_file_from_vector_store(vs_path)
     if "fail" in status:
         vs_status = "文件删除失败。"
-    elif len(rested_files)>0:
+    elif len(rested_files) > 0:
         vs_status = "文件删除成功。"
     else:
         vs_status = f"文件删除成功，知识库{vs_id}中无已上传文件，请先上传文件后，再开始提问。"
-    logger.info(",".join(files_to_delete)+vs_status)
+    logger.info(",".join(files_to_delete) + vs_status)
     chatbot = chatbot + [[None, vs_status]]
     return gr.update(choices=local_doc_qa.list_file_from_vector_store(vs_path), value=[]), chatbot
 
@@ -285,14 +287,15 @@ def delete_vs(vs_id, chatbot):
         status = f"成功删除知识库{vs_id}"
         logger.info(status)
         chatbot = chatbot + [[None, status]]
-        return gr.update(choices=get_vs_list(), value=get_vs_list()[0]), gr.update(visible=True), gr.update(visible=True), \
-               gr.update(visible=False), chatbot, gr.update(visible=False)
+        return gr.update(choices=get_vs_list(), value=get_vs_list()[0]), gr.update(visible=True), gr.update(
+            visible=True), \
+            gr.update(visible=False), chatbot, gr.update(visible=False)
     except Exception as e:
         logger.error(e)
         status = f"删除知识库{vs_id}失败"
         chatbot = chatbot + [[None, status]]
         return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), \
-               gr.update(visible=True), chatbot, gr.update(visible=True)
+            gr.update(visible=True), chatbot, gr.update(visible=True)
 
 
 block_css = """.importantButton {
@@ -328,7 +331,8 @@ default_theme_args = dict(
 
 with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as demo:
     vs_path, file_status, model_status = gr.State(
-        os.path.join(KB_ROOT_PATH, get_vs_list()[0], "vector_store") if len(get_vs_list()) > 1 else ""), gr.State(""), gr.State(
+        os.path.join(KB_ROOT_PATH, get_vs_list()[0], "vector_store") if len(get_vs_list()) > 1 else ""), gr.State(
+        ""), gr.State(
         model_status)
     gr.Markdown(webui_title)
     with gr.Tab("对话"):
@@ -381,8 +385,8 @@ with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as 
                             load_folder_button = gr.Button("上传文件夹并加载知识库")
                         with gr.Tab("删除文件"):
                             files_to_delete = gr.CheckboxGroup(choices=[],
-                                                             label="请从知识库已有文件中选择要删除的文件",
-                                                             interactive=True)
+                                                               label="请从知识库已有文件中选择要删除的文件",
+                                                               interactive=True)
                             delete_file_button = gr.Button("从知识库中删除选中文件")
                     vs_refresh.click(fn=refresh_vs_list,
                                      inputs=[],
@@ -438,21 +442,22 @@ with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as 
                                                 interactive=True)
                     vector_search_top_k = gr.Number(value=VECTOR_SEARCH_TOP_K, precision=0,
                                                     label="获取知识库内容条数", interactive=True)
-                    chunk_conent = gr.Checkbox(value=False,
-                                               label="是否启用上下文关联",
-                                               interactive=True)
+                    chunk_content = gr.Checkbox(value=False,
+                                                label="是否启用上下文关联",
+                                                interactive=True)
                     chunk_sizes = gr.Number(value=CHUNK_SIZE, precision=0,
                                             label="匹配单段内容的连接上下文后最大长度",
                                             interactive=True, visible=False)
-                    chunk_conent.change(fn=change_chunk_conent,
-                                        inputs=[chunk_conent, gr.Textbox(value="chunk_conent", visible=False), chatbot],
-                                        outputs=[chunk_sizes, chatbot])
+                    chunk_content.change(fn=change_chunk_content,
+                                         inputs=[chunk_content, gr.Textbox(value="chunk_content", visible=False),
+                                                 chatbot],
+                                         outputs=[chunk_sizes, chatbot])
                 with vs_setting:
                     vs_refresh = gr.Button("更新已有知识库选项")
                     select_vs_test = gr.Dropdown(get_vs_list(),
-                                            label="请选择要加载的知识库",
-                                            interactive=True,
-                                            value=get_vs_list()[0] if len(get_vs_list()) > 0 else None)
+                                                 label="请选择要加载的知识库",
+                                                 interactive=True,
+                                                 value=get_vs_list()[0] if len(get_vs_list()) > 0 else None)
                     vs_name = gr.Textbox(label="请输入新建知识库名称，当前知识库命名暂不支持中文",
                                          lines=1,
                                          interactive=True,
@@ -480,10 +485,10 @@ with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as 
                             load_folder_button = gr.Button("上传文件夹并加载知识库")
                         with gr.Tab("添加单条内容"):
                             one_title = gr.Textbox(label="标题", placeholder="请输入要添加单条段落的标题", lines=1)
-                            one_conent = gr.Textbox(label="内容", placeholder="请输入要添加单条段落的内容", lines=5)
+                            one_content = gr.Textbox(label="内容", placeholder="请输入要添加单条段落的内容", lines=5)
                             one_content_segmentation = gr.Checkbox(value=True, label="禁止内容分句入库",
                                                                    interactive=True)
-                            load_conent_button = gr.Button("添加内容并加载知识库")
+                            load_content_button = gr.Button("添加内容并加载知识库")
                     # 将上传的文件保存到content文件夹下,并更新下拉框
                     vs_refresh.click(fn=refresh_vs_list,
                                      inputs=[],
@@ -492,8 +497,8 @@ with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as 
                                  inputs=[vs_name, chatbot],
                                  outputs=[select_vs_test, vs_name, vs_add, file2vs, chatbot])
                     select_vs_test.change(fn=change_vs_name_input,
-                                     inputs=[select_vs_test, chatbot],
-                                     outputs=[vs_name, vs_add, file2vs, vs_path, chatbot])
+                                          inputs=[select_vs_test, chatbot],
+                                          outputs=[vs_name, vs_add, file2vs, vs_path, chatbot])
                     load_file_button.click(get_vector_store,
                                            show_progress=True,
                                            inputs=[select_vs_test, files, sentence_size, chatbot, vs_add, vs_add],
@@ -503,14 +508,14 @@ with gr.Blocks(css=block_css, theme=gr.themes.Default(**default_theme_args)) as 
                                              inputs=[select_vs_test, folder_files, sentence_size, chatbot, vs_add,
                                                      vs_add],
                                              outputs=[vs_path, folder_files, chatbot], )
-                    load_conent_button.click(get_vector_store,
-                                             show_progress=True,
-                                             inputs=[select_vs_test, one_title, sentence_size, chatbot,
-                                                     one_conent, one_content_segmentation],
-                                             outputs=[vs_path, files, chatbot], )
+                    load_content_button.click(get_vector_store,
+                                              show_progress=True,
+                                              inputs=[select_vs_test, one_title, sentence_size, chatbot,
+                                                      one_content, one_content_segmentation],
+                                              outputs=[vs_path, files, chatbot], )
                     flag_csv_logger.setup([query, vs_path, chatbot, mode], "flagged")
                     query.submit(get_answer,
-                                 [query, vs_path, chatbot, mode, score_threshold, vector_search_top_k, chunk_conent,
+                                 [query, vs_path, chatbot, mode, score_threshold, vector_search_top_k, chunk_content,
                                   chunk_sizes],
                                  [chatbot, query])
     with gr.Tab("模型配置"):

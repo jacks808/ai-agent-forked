@@ -1,11 +1,12 @@
+import copy
+from typing import Any, Callable, List, Dict
+
+import numpy as np
+from langchain.docstore.base import Docstore
+from langchain.docstore.document import Document
 from langchain.vectorstores import FAISS
 from langchain.vectorstores.base import VectorStore
 from langchain.vectorstores.faiss import dependable_faiss_import
-from typing import Any, Callable, List, Dict
-from langchain.docstore.base import Docstore
-from langchain.docstore.document import Document
-import numpy as np
-import copy
 
 
 class MyFAISS(FAISS, VectorStore):
@@ -22,6 +23,8 @@ class MyFAISS(FAISS, VectorStore):
                          docstore=docstore,
                          index_to_docstore_id=index_to_docstore_id,
                          normalize_L2=normalize_L2)
+        self.score_threshold = 0
+        self.chunk_content = False
 
     def seperate_list(self, ls: List[int]) -> List[List[int]]:
         # TODO: 增加是否属于同一文档的判断
@@ -54,7 +57,7 @@ class MyFAISS(FAISS, VectorStore):
                 continue
             _id = self.index_to_docstore_id[i]
             doc = self.docstore.search(_id)
-            if (not self.chunk_conent) or ("context_expand" in doc.metadata and not doc.metadata["context_expand"]):
+            if (not self.chunk_content) or ("context_expand" in doc.metadata and not doc.metadata["context_expand"]):
                 # 匹配出的文本如果不需要扩展上下文则执行如下代码
                 if not isinstance(doc, Document):
                     raise ValueError(f"Could not find document for id {_id}, got {doc}")
@@ -86,7 +89,7 @@ class MyFAISS(FAISS, VectorStore):
                             rearrange_id_list = True
                 if break_flag:
                     break
-        if (not self.chunk_conent) or (not rearrange_id_list):
+        if (not self.chunk_content) or (not rearrange_id_list):
             return docs
         if len(id_set) == 0 and self.score_threshold > 0:
             return []

@@ -1,22 +1,23 @@
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-from vectorstores import MyFAISS
-from langchain.document_loaders import UnstructuredFileLoader, TextLoader, CSVLoader
-from configs.model_config import *
 import datetime
-from textsplitter import ChineseTextSplitter
+from functools import lru_cache
 from typing import List
-from utils import torch_gc
-from tqdm import tqdm
+
+from langchain.docstore.document import Document
+from langchain.document_loaders import UnstructuredFileLoader, TextLoader, CSVLoader
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from pypinyin import lazy_pinyin
-from loader import UnstructuredPaddleImageLoader, UnstructuredPaddlePDFLoader
-from models.base import (BaseAnswer,
-                         AnswerResult)
-from models.loader.args import parser
-from models.loader import LoaderCheckPoint
+from tqdm import tqdm
+
 import models.shared as shared
 from agent import bing_search
-from langchain.docstore.document import Document
-from functools import lru_cache
+from configs.model_config import *
+from loader import UnstructuredPaddleImageLoader, UnstructuredPaddlePDFLoader
+from models.base import (BaseAnswer)
+from models.loader import LoaderCheckPoint
+from models.loader.args import parser
+from textsplitter import ChineseTextSplitter
+from utils import torch_gc
+from vectorstores import MyFAISS
 
 
 # patch HuggingFaceEmbeddings to make it hashable
@@ -120,7 +121,7 @@ class LocalDocQA:
     embeddings: object = None
     top_k: int = VECTOR_SEARCH_TOP_K
     chunk_size: int = CHUNK_SIZE
-    chunk_conent: bool = True
+    chunk_content: bool = True
     score_threshold: int = VECTOR_SEARCH_SCORE_THRESHOLD
 
     def init_cfg(self,
@@ -199,12 +200,12 @@ class LocalDocQA:
             logger.info("文件均未成功加载，请检查依赖包或替换为其他文件再次上传。")
             return None, loaded_files
 
-    def one_knowledge_add(self, vs_path, one_title, one_conent, one_content_segmentation, sentence_size):
+    def one_knowledge_add(self, vs_path, one_title, one_content, one_content_segmentation, sentence_size):
         try:
-            if not vs_path or not one_title or not one_conent:
+            if not vs_path or not one_title or not one_content:
                 logger.info("知识库添加错误，请确认知识库名字、标题、内容是否正确！")
                 return None, [one_title]
-            docs = [Document(page_content=one_conent + "\n", metadata={"source": one_title})]
+            docs = [Document(page_content=one_content + "\n", metadata={"source": one_title})]
             if not one_content_segmentation:
                 text_splitter = ChineseTextSplitter(pdf=False, sentence_size=sentence_size)
                 docs = text_splitter.split_documents(docs)
@@ -223,7 +224,7 @@ class LocalDocQA:
     def get_knowledge_based_answer(self, query, vs_path, chat_history=[], streaming: bool = STREAMING):
         vector_store = load_vector_store(vs_path, self.embeddings)
         vector_store.chunk_size = self.chunk_size
-        vector_store.chunk_conent = self.chunk_conent
+        vector_store.chunk_content = self.chunk_content
         vector_store.score_threshold = self.score_threshold
         related_docs_with_score = vector_store.similarity_search_with_score(query, k=self.top_k)
         torch_gc()
@@ -244,16 +245,16 @@ class LocalDocQA:
 
     # query      查询内容
     # vs_path    知识库路径
-    # chunk_conent   是否启用上下文关联
+    # chunk_content   是否启用上下文关联
     # score_threshold    搜索匹配score阈值
     # vector_search_top_k   搜索知识库内容条数，默认搜索5条结果
     # chunk_sizes    匹配单段内容的连接上下文长度
-    def get_knowledge_based_conent_test(self, query, vs_path, chunk_conent,
-                                        score_threshold=VECTOR_SEARCH_SCORE_THRESHOLD,
-                                        vector_search_top_k=VECTOR_SEARCH_TOP_K, chunk_size=CHUNK_SIZE):
+    def get_knowledge_based_content_test(self, query, vs_path, chunk_content,
+                                         score_threshold=VECTOR_SEARCH_SCORE_THRESHOLD,
+                                         vector_search_top_k=VECTOR_SEARCH_TOP_K, chunk_size=CHUNK_SIZE):
         vector_store = load_vector_store(vs_path, self.embeddings)
         # FAISS.similarity_search_with_score_by_vector = similarity_search_with_score_by_vector
-        vector_store.chunk_conent = chunk_conent
+        vector_store.chunk_content = chunk_content
         vector_store.score_threshold = score_threshold
         vector_store.chunk_size = chunk_size
         related_docs_with_score = vector_store.similarity_search_with_score(query, k=vector_search_top_k)
@@ -292,7 +293,7 @@ class LocalDocQA:
     def update_file_from_vector_store(self,
                                       filepath: str or List[str],
                                       vs_path,
-                                      docs: List[Document],):
+                                      docs: List[Document], ):
         vector_store = load_vector_store(vs_path, self.embeddings)
         status = vector_store.update_doc(filepath, docs)
         return status
