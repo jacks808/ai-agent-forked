@@ -67,5 +67,5 @@ export const web_url = () => {
   return window.location.origin
 }
 export const setapi = () => {
-  return window.baseApi
+  return process.env.NODE_ENV === 'development' ? '/api' : window.baseApi
 }

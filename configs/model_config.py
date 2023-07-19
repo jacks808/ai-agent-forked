@@ -3,6 +3,9 @@ import os
 import uuid
 
 import torch.backends
+from dotenv import load_dotenv
+
+load_dotenv()
 
 LOG_FORMAT = "%(levelname) -5s %(asctime)s" "-1d: %(message)s"
 logger = logging.getLogger()
@@ -16,7 +19,7 @@ embedding_model_dict = {
     "ernie-tiny": "nghuyong/ernie-3.0-nano-zh",
     "ernie-base": "nghuyong/ernie-3.0-base-zh",
     "text2vec-base": "shibing624/text2vec-base-chinese",
-    "text2vec": "/root/text2vec-large-chinese",
+    "text2vec": os.getenv("EMBEDDING_MODEL_TEXT2VEC_PATH", None),
     "m3e-small": "moka-ai/m3e-small",
     "m3e-base": "moka-ai/m3e-base",
 }
@@ -25,7 +28,8 @@ embedding_model_dict = {
 EMBEDDING_MODEL = "text2vec"
 
 # Embedding running device
-EMBEDDING_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+EMBEDDING_DEVICE = "cuda" if torch.cuda.is_available(
+) else "mps" if torch.backends.mps.is_available() else "cpu"
 
 # supported LLM models
 # llm_model_dict 处理了loader的一些预设行为，如加载位置，模型名称，模型处理器实例
@@ -48,13 +52,13 @@ llm_model_dict = {
     "chatglm-6b-int8": {
         "name": "chatglm-6b-int8",
         "pretrained_model_name": "THUDM/chatglm-6b-int8",
-        "local_model_path": "/root/chatglm-6b-models-int8",
+        "local_model_path": os.getenv("LLM_MODEL_CHAT_GLM_6B_INT8_PATH", None),
         "provides": "ChatGLM"
     },
     "chatglm-6b": {
         "name": "chatglm-6b",
         "pretrained_model_name": "THUDM/chatglm-6b",
-        "local_model_path": None,
+        "local_model_path": os.getenv("LLM_MODEL_CHAT_GLM_6B_PATH", None),
         "provides": "ChatGLM"
     },
 
@@ -82,8 +86,10 @@ llm_model_dict = {
         "name": "chatglm-6b",  # "name"修改为fastchat服务中的"model_name"
         "pretrained_model_name": "chatglm-6b",
         "local_model_path": None,
-        "provides": "FastChatOpenAILLM",  # 使用fastchat api时，需保证"provides"为"FastChatOpenAILLM"
-        "api_base_url": "http://localhost:8000/v1"  # "name"修改为fastchat服务中的"api_base_url"
+        # 使用fastchat api时，需保证"provides"为"FastChatOpenAILLM"
+        "provides": "FastChatOpenAILLM",
+        # "name"修改为fastchat服务中的"api_base_url"
+        "api_base_url": "http://localhost:8000/v1"
     },
 
     # 通过 fastchat 调用的模型请参考如下格式
@@ -91,8 +97,10 @@ llm_model_dict = {
         "name": "vicuna-13b-hf",  # "name"修改为fastchat服务中的"model_name"
         "pretrained_model_name": "vicuna-13b-hf",
         "local_model_path": None,
-        "provides": "FastChatOpenAILLM",  # 使用fastchat api时，需保证"provides"为"FastChatOpenAILLM"
-        "api_base_url": "http://localhost:8000/v1"  # "name"修改为fastchat服务中的"api_base_url"
+        # 使用fastchat api时，需保证"provides"为"FastChatOpenAILLM"
+        "provides": "FastChatOpenAILLM",
+        # "name"修改为fastchat服务中的"api_base_url"
+        "api_base_url": "http://localhost:8000/v1"
     },
 }
 
@@ -116,10 +124,12 @@ STREAMING = True
 USE_P_TUNING_V2 = False
 
 # LLM running device
-LLM_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+LLM_DEVICE = "cuda" if torch.cuda.is_available(
+) else "mps" if torch.backends.mps.is_available() else "cpu"
 
 # 知识库默认存储路径
-KB_ROOT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge_base")
+KB_ROOT_PATH = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), "knowledge_base")
 
 # 基于上下文的prompt模版，请务必保留"{question}"和"{context}"
 PROMPT_TEMPLATE = """已知信息：
@@ -145,7 +155,8 @@ VECTOR_SEARCH_TOP_K = 5
 # 知识检索内容相关度 Score, 数值范围约为0-1100，如果为0，则不生效，经测试设置为小于500时，匹配结果更精准
 VECTOR_SEARCH_SCORE_THRESHOLD = 500
 
-NLTK_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "nltk_data")
+NLTK_DATA_PATH = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), "nltk_data")
 
 FLAG_USER_NAME = uuid.uuid4().hex
 
@@ -179,3 +190,9 @@ CONTEXT_PATH = "/ai"
 
 # WebSocket 前缀
 WS_PREFIX = "/aisocket"
+
+# COS 配置
+COS_SECRET_ID = os.getenv("COS_SECRET_ID", "")
+COS_SECRET_KEY = os.getenv("COS_SECRET_KEY", "")
+COS_REGION = os.getenv("COS_REGION", "")
+COS_BUCKET = os.getenv("COS_BUCKET", "")

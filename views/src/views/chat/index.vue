@@ -166,8 +166,8 @@ watch(knowledgeId, createWebSocket)
 
 async function handleSubmit() {
   try {
-    _hmt.push(['_trackEvent', '知识库', 'send_message'])
-    gtag('event', 'send_message', {})
+    window._hmt.push(['_trackEvent', '知识库', 'send_message'])
+    window.gtag('event', 'send_message', {})
   }
   catch (error) {
 

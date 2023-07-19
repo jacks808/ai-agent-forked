@@ -3,7 +3,8 @@ from functools import lru_cache
 from typing import List
 
 from langchain.docstore.document import Document
-from langchain.document_loaders import UnstructuredFileLoader, TextLoader, CSVLoader
+from langchain.document_loaders import UnstructuredFileLoader, TextLoader, CSVLoader, UnstructuredImageLoader, \
+    UnstructuredPDFLoader
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from pypinyin import lazy_pinyin
 from tqdm import tqdm
@@ -11,7 +12,7 @@ from tqdm import tqdm
 import models.shared as shared
 from agent import bing_search
 from configs.model_config import *
-from loader import UnstructuredPaddleImageLoader, UnstructuredPaddlePDFLoader
+# from loader import UnstructuredPaddleImageLoader, UnstructuredPaddlePDFLoader
 from models.base import (BaseAnswer)
 from models.loader import LoaderCheckPoint
 from models.loader.args import parser
@@ -66,11 +67,11 @@ def load_file(filepath, sentence_size=SENTENCE_SIZE):
         textsplitter = ChineseTextSplitter(pdf=False, sentence_size=sentence_size)
         docs = loader.load_and_split(textsplitter)
     elif filepath.lower().endswith(".pdf"):
-        loader = UnstructuredPaddlePDFLoader(filepath)
+        loader = UnstructuredPDFLoader(filepath)
         textsplitter = ChineseTextSplitter(pdf=True, sentence_size=sentence_size)
         docs = loader.load_and_split(textsplitter)
     elif filepath.lower().endswith(".jpg") or filepath.lower().endswith(".png"):
-        loader = UnstructuredPaddleImageLoader(filepath, mode="elements")
+        loader = UnstructuredImageLoader(filepath, mode="elements")
         textsplitter = ChineseTextSplitter(pdf=False, sentence_size=sentence_size)
         docs = loader.load_and_split(text_splitter=textsplitter)
     elif filepath.lower().endswith(".csv"):

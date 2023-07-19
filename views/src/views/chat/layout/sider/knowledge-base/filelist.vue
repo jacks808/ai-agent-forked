@@ -1,21 +1,24 @@
 <script setup lang='ts'>
 import { onMounted, ref, toRef } from 'vue'
-import { NInput, NP, NPopconfirm, NScrollbar, NText, NTooltip, NUpload, NUploadDragger } from 'naive-ui'
+import { NGradientText, NInput, NNumberAnimation, NP, NPopconfirm, NScrollbar, NStatistic, NText, NTooltip, NUpload, NUploadDragger } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
 import { useChatStore } from '@/store'
 import { deleteKnowledgeFile, getKnowledgeFiles, setapi, web_url } from '@/api/chat'
+import { useBasicLayout } from '@/hooks/useBasicLayout'
+
 const knowledge = defineProps({
   knowledgebaseid: {
     type: String, // 类型字符串
   },
 })
+const { debug } = useBasicLayout()
 const knowledge_base_id = toRef(knowledge, 'knowledgebaseid')
 
 const chatStore = useChatStore()
 const dataSources = ref<any>([])
 
 onMounted(async () => {
-  const res = await getKnowledgeFiles(knowledge_base_id.value)
+  const res = await getKnowledgeFiles(knowledge_base_id.value as string)
   dataSources.value = res.data.data
 })
 
@@ -42,8 +45,8 @@ const mimeTypes = [
 } */
 
 async function handleDelete(item: any) {
-  /* const mid =  */await deleteKnowledgeFile({ knowledge_base_id: knowledge_base_id.value, doc_name: item })
-  const res = await getKnowledgeFiles(knowledge_base_id.value)
+  /* const mid =  */await deleteKnowledgeFile({ knowledge_base_id: knowledge_base_id.value as string, doc_name: item })
+  const res = await getKnowledgeFiles(knowledge_base_id.value as string)
   dataSources.value = res.data.data
 }
 
@@ -52,9 +55,31 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
   if (event.key === 'Enter')
     chatStore.updateHistory(uuid, { isEdit })
 }
+
+function handleUploadFinish() {
+  try {
+    window._hmt.push(['_trackEvent', '知识库', 'upload_doc'])
+    window.gtag('event', 'upload_doc', {})
+  }
+  catch (error) {
+
+  }
+}
 </script>
 
 <template>
+  <div class="my-3">
+    <NStatistic tabular-nums>
+      <template #label>
+        <NGradientText type="info">
+          当前知识库文档数量
+        </NGradientText>
+      </template>
+      <NGradientText type="info">
+        <NNumberAnimation show-separator :from="0" :to="dataSources.length" />
+      </NGradientText>
+    </NStatistic>
+  </div>
   <NUpload
     multiple
     directory-dnd
@@ -66,15 +91,7 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
     :data="{
       knowledge_base_id: knowledge.knowledgebaseid as string,
     }"
-    @finish="() => {
-      try {
-        _hmt.push(['_trackEvent', '知识库', 'upload_doc']);
-        gtag('event', 'upload_doc', {})
-      }
-      catch (error) {
-
-      }
-    }"
+    @finish="handleUploadFinish"
   >
     <NUploadDragger>
       <NText style="font-size: 16px">
@@ -86,7 +103,7 @@ function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEve
     </NUploadDragger>
   </NUpload>
   <NScrollbar class="px-4">
-    <div class="flex flex-col gap-2 text-sm">
+    <div v-if="debug" class="flex flex-col gap-2 text-sm">
       <template v-if="!dataSources.length">
         <div class="flex flex-col items-center mt-4 text-center text-neutral-300">
           <SvgIcon icon="ri:inbox-line" class="mb-2 text-3xl" />

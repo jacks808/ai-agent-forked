@@ -14,16 +14,20 @@ from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from typing_extensions import Annotated
 
+import cos as cos
 import models.shared as shared
-from chains.local_doc_qa import LocalDocQA
-from configs.model_config import (KB_ROOT_PATH, EMBEDDING_DEVICE,
-                                  EMBEDDING_MODEL, NLTK_DATA_PATH,
-                                  VECTOR_SEARCH_TOP_K, LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN,
+from configs.model_config import (KB_ROOT_PATH, NLTK_DATA_PATH,
+                                  LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN,
                                   CONTEXT_PATH, WS_PREFIX, logger)
 from models.loader import LoaderCheckPoint
 from models.loader.args import parser
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
+
+app = FastAPI(
+    openapi_url=f'{CONTEXT_PATH}/openapi.json',
+    docs_url=f'{CONTEXT_PATH}/docs'
+)
 
 
 class BaseResponse(BaseModel):
@@ -78,6 +82,24 @@ class ChatMessage(BaseModel):
                 ],
             }
         }
+
+
+class COSResponse(BaseResponse):
+    url: str = pydantic.Field(..., description="COS 上传预签名地址")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "code": 200,
+                "msg": "success",
+                "url": "https://xxx.xxx.xxx",
+            }
+        }
+
+
+class SaveDocRequest(BaseModel):
+    filenames: List[str] = pydantic.Field(..., description="文件名列表")
+    knowledge_base_id: str = pydantic.Field(..., description="知识库 ID")
 
 
 def get_content_path(local_doc_id: str):
@@ -440,17 +462,33 @@ async def document():
     return RedirectResponse(url=f"{CONTEXT_PATH}/docs")
 
 
+@app.get("/cos/docs/url", response_model=COSResponse)
+async def get_cos_url(filename: str = Query(..., description="文档名称"),
+                      knowledge_base_id: str = Query(..., description="知识库ID")):
+    key = f"{knowledge_base_id}/{filename}"
+    url = cos.get_presigned_url(key)
+    return {
+        "url": url,
+    }
+
+
+@app.post("/cos/docs/save", response_model=BaseResponse)
+async def save_cos_docs(info: SaveDocRequest):
+    filenames = info.filenames
+    knowledge_base_id = info.knowledge_base_id
+
+    return {
+        "status": "success",
+    }
+
+
 def api_start(host, port):
-    global app
+    # global app
     global local_doc_qa
 
     llm_model_ins = shared.loaderLLM()
     llm_model_ins.set_history_len(LLM_HISTORY_LEN)
 
-    app = FastAPI(
-        openapi_url=f'{CONTEXT_PATH}/openapi.json',
-        docs_url=f'{CONTEXT_PATH}/docs'
-    )
     # Add CORS middleware to allow all origins
     # 在config.py中设置OPEN_DOMAIN=True，允许跨域
     # set OPEN_DOMAIN=True in config.py to allow cross-domain
@@ -488,13 +526,6 @@ def api_start(host, port):
     app.post("/local_doc_qa/update_file",
              response_model=BaseResponse)(update_doc)
 
-    local_doc_qa = LocalDocQA()
-    local_doc_qa.init_cfg(
-        llm_model=llm_model_ins,
-        embedding_model=EMBEDDING_MODEL,
-        embedding_device=EMBEDDING_DEVICE,
-        top_k=VECTOR_SEARCH_TOP_K,
-    )
     uvicorn.run(app, host=host, port=port)
 
 
